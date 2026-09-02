@@ -58,8 +58,8 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit -p ./",
     "lint": "eslint src --ext ts",
-    "test": "node --import tsx --test \"test/unit/**/*.test.ts\"",
-    "test:watch": "node --import tsx --test --watch \"test/unit/**/*.test.ts\"",
+    "test": "node --import tsx --test test/unit/*.test.ts",
+    "test:watch": "node --import tsx --test --watch test/unit/*.test.ts",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
