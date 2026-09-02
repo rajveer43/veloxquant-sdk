@@ -31,6 +31,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Streaming](#streaming)
+- [Memory calculator](#memory-calculator)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [CLI](#cli)
@@ -75,6 +76,46 @@ for await (const chunk of vq.stream({
   if (!chunk.done) process.stdout.write(chunk.text);
 }
 ```
+
+## Memory calculator
+
+`vq.memory.estimate()` answers "will this fit?" for a given attention shape —
+fp16 KV-cache size, the compression method `veloxquant-mlx` would pick, and a
+directional estimate of what compression saves:
+
+```ts
+import { VeloxQuant, formatBytes } from "@veloxquant/sdk";
+
+const vq = new VeloxQuant();
+const estimate = await vq.memory.estimate({ seqLen: 32768, headDim: 128, nLayers: 32 });
+
+console.log(`fp16 KV-cache:        ${formatBytes(estimate.fp16KvCacheBytes)}`);
+console.log(`Recommended method:   ${estimate.recommendedMethod}`);
+console.log(`Estimated compressed: ${formatBytes(estimate.estimatedCompressedBytes)}`);
+console.log(`Estimated saved:      ${formatBytes(estimate.memorySavedBytes)}`);
+```
+
+```txt
+fp16 KV-cache:        512 MB
+Recommended method:   kvquant
+Estimated compressed: 96 MB
+Estimated saved:      416 MB
+```
+
+(Real output from `examples/memory-estimate.ts --seq-len 32768 --head-dim 128 --n-layers 32`
+against veloxquant-mlx 0.71.1 — the method and savings above depend on the
+installed package version and the workload shape you pass in.)
+
+A standalone, copy-pasteable version of this lives at
+[`examples/memory-estimate.ts`](examples/memory-estimate.ts):
+
+```bash
+npx tsx examples/memory-estimate.ts --seq-len 32768 --head-dim 128 --n-layers 32
+```
+
+The same caveat from [Known limitations](#known-limitations) applies here:
+these byte counts are accounting-only (fidelity estimates), not measured
+runtime memory freed.
 
 ## Hardware-aware memory optimization
 

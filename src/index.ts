@@ -6,6 +6,7 @@ export { listMethods } from './methods.js';
 export { optimize } from './optimize.js';
 export { startServer } from './serve.js';
 export { chatCompletion, chatStream } from './chat.js';
+export { formatBytes } from './cli/format.js';
 export {
   InterpreterInvalidError,
   ModuleNotFoundInInterpreterError,
