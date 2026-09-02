@@ -1,0 +1,71 @@
+{
+  "name": "@veloxquant/sdk",
+  "version": "0.1.0",
+  "description": "JavaScript/TypeScript SDK for VeloxQuant-MLX: hardware-aware memory optimization and OpenAI-compatible local inference on Apple Silicon.",
+  "license": "MIT",
+  "author": "Rajveer Rathod",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "veloxquant": "./bin/veloxquant.js",
+    "vq": "./bin/veloxquant.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "media/icon.png"
+  ],
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "keywords": [
+    "mlx",
+    "apple silicon",
+    "quantization",
+    "kv cache",
+    "llm",
+    "local ai",
+    "openai",
+    "sdk",
+    "m1",
+    "m2",
+    "m3",
+    "m4",
+    "m5"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rajveer43/veloxquant-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rajveer43/veloxquant-sdk/issues"
+  },
+  "homepage": "https://github.com/rajveer43/veloxquant-sdk#readme",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node --import tsx --test test/unit/**/*.test.ts",
+    "test:watch": "node --import tsx --test --watch test/unit/**/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

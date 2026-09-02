@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build bundle
+        run: npm run build
+
+      - name: Pack (dry run)
+        run: npm pack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-pack-dry-run
+          path: '*.tgz'
