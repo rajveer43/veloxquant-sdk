@@ -259,8 +259,28 @@ way.
 ```bash
 npx veloxquant doctor      # checks Apple Silicon + veloxquant-mlx install
 npx veloxquant recommend   # shows detected hardware + servable methods
+npx veloxquant recommend --model-class 7B --goal everyday  # full recommendation (chip/RAM auto-detected)
 npx veloxquant analyze --seq-len 32768 --head-dim 128 --n-layers 32
 ```
+
+Every command accepts `--json` for scripting/CI use — valid, parseable JSON on
+stdout with nothing else mixed in:
+
+```bash
+npx veloxquant doctor --json
+```
+
+```json
+{
+  "ready": true,
+  "platform": { "ok": true, "value": "darwin" },
+  "appleSilicon": { "ok": true, "chip": "Apple M4" },
+  "python": { "ok": true, "interpreter": "python3" },
+  "veloxquantMlx": { "ok": true, "version": "0.70.0" }
+}
+```
+
+(Real output, verified against a local machine.)
 
 ## Known limitations
 

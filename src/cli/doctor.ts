@@ -1,16 +1,39 @@
 import { getSystemInfo } from '../system.js';
 import { check } from './format.js';
 
-export async function runDoctor(): Promise<number> {
+export interface DoctorArgs {
+  json?: boolean;
+}
+
+export async function runDoctor(args: DoctorArgs = {}): Promise<number> {
   const info = await getSystemInfo();
 
-  console.log('VeloxQuant SDK doctor\n');
-  console.log(`${check(info.platform === 'darwin')} Platform: ${info.platform}`);
-  console.log(`${check(info.isAppleSilicon)} Apple Silicon: ${info.isAppleSilicon ? (info.chip ?? 'detected') : 'not detected'}`);
-  console.log(`${check(info.veloxquantInstalled)} veloxquant-mlx installed: ${info.veloxquantVersion ?? 'not found'}`);
-  console.log(`  Python interpreter: ${info.pythonInterpreter}`);
+  const platformOk = info.platform === 'darwin';
+  const pythonOk = info.pythonInterpreter.length > 0;
+  const allOk = platformOk && info.isAppleSilicon && pythonOk && info.veloxquantInstalled;
 
-  const allOk = info.platform === 'darwin' && info.isAppleSilicon && info.veloxquantInstalled;
+  if (args.json) {
+    console.log(
+      JSON.stringify(
+        {
+          ready: allOk,
+          platform: { ok: platformOk, value: info.platform },
+          appleSilicon: { ok: info.isAppleSilicon, chip: info.chip },
+          python: { ok: pythonOk, interpreter: info.pythonInterpreter },
+          veloxquantMlx: { ok: info.veloxquantInstalled, version: info.veloxquantVersion },
+        },
+        null,
+        2,
+      ),
+    );
+    return allOk ? 0 : 1;
+  }
+
+  console.log('VeloxQuant SDK doctor\n');
+  console.log(`${check(platformOk)} Platform: ${info.platform}`);
+  console.log(`${check(info.isAppleSilicon)} Apple Silicon: ${info.isAppleSilicon ? (info.chip ?? 'detected') : 'not detected'}`);
+  console.log(`${check(pythonOk)} Python available: ${info.pythonInterpreter}`);
+  console.log(`${check(info.veloxquantInstalled)} veloxquant-mlx installed: ${info.veloxquantVersion ?? 'not found'}`);
 
   console.log();
   if (allOk) {

@@ -6,11 +6,17 @@ export interface AnalyzeArgs {
   seqLen?: number;
   nLayers?: number;
   batchSize?: number;
+  json?: boolean;
 }
 
 export async function runAnalyze(args: AnalyzeArgs): Promise<number> {
   try {
     const estimate = await estimateMemory(args);
+
+    if (args.json) {
+      console.log(JSON.stringify(estimate, null, 2));
+      return 0;
+    }
 
     console.log('VeloxQuant memory analysis\n');
     console.log(`fp16 KV-cache: ${formatBytes(estimate.fp16KvCacheBytes)}`);
@@ -26,7 +32,11 @@ export async function runAnalyze(args: AnalyzeArgs): Promise<number> {
     );
     return 0;
   } catch (err) {
-    console.error(`Analysis failed: ${(err as Error).message}`);
+    if (args.json) {
+      console.log(JSON.stringify({ error: (err as Error).message }, null, 2));
+    } else {
+      console.error(`Analysis failed: ${(err as Error).message}`);
+    }
     return 1;
   }
 }
