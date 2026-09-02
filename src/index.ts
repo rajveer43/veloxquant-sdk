@@ -1,4 +1,5 @@
 export { VeloxQuant, VeloxQuantModel } from './client.js';
+export { autopilot, AutopilotFitError, AutopilotSession } from './autopilot.js';
 export { getSystemInfo } from './system.js';
 export { autoConfig, estimateMemory } from './memory.js';
 export { recommend, normalizeChip, normalizeRamGb, SUPPORTED_CHIPS, SUPPORTED_RAM_GB } from './recommend.js';
@@ -13,6 +14,8 @@ export {
   resolveInterpreter,
   getInstalledVersion,
 } from './python/interpreter.js';
+
+export type { AutopilotInput } from './autopilot.js';
 
 export type {
   VeloxQuantOptions,

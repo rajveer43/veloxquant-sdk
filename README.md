@@ -31,6 +31,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Streaming](#streaming)
+- [Autopilot](#autopilot)
 - [Memory calculator](#memory-calculator)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
@@ -76,6 +77,41 @@ for await (const chunk of vq.stream({
   if (!chunk.done) process.stdout.write(chunk.text);
 }
 ```
+
+## Autopilot
+
+`autopilot()` is the zero-config entry point for "I don't want to think about
+memory." Give it a model and a rough model-size class; it gets a
+hardware-aware recommendation for this machine, refuses to start a server for
+a configuration that clearly won't fit, and loads the model with a method
+`veloxquant serve` can actually run:
+
+```ts
+import { autopilot } from "@veloxquant/sdk";
+
+const ai = await autopilot({ model: "mlx-community/Llama-3.2-1B-Instruct-4bit", modelClass: "1B" });
+const answer = await ai.chat({ prompt: "Build a REST API in TypeScript" });
+await ai.stop();
+```
+
+If the recommended configuration is unlikely to fit in available memory,
+`autopilot()` throws an `AutopilotFitError` describing why instead of starting
+a server that would likely crash or thrash:
+
+```ts
+try {
+  await autopilot({ model: "mlx-community/Qwen3-32B-4bit", modelClass: "32B" });
+} catch (err) {
+  if (err instanceof AutopilotFitError) {
+    console.error(err.message); // lists the specific won't-fit warning(s)
+  }
+}
+```
+
+Pass `{ force: true }` to start the server anyway. Note: `autopilot()` does
+not pick a model for you — `veloxquant-mlx` has no LLM catalog to select
+from, only a KV-cache compression config recommender — `model` must always be
+a model you name yourself.
 
 ## Memory calculator
 
