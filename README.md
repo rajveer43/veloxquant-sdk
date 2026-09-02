@@ -33,6 +33,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Streaming](#streaming)
 - [Autopilot](#autopilot)
 - [Memory calculator](#memory-calculator)
+- [Compression methods](#compression-methods)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [CLI](#cli)
@@ -152,6 +153,40 @@ npx tsx examples/memory-estimate.ts --seq-len 32768 --head-dim 128 --n-layers 32
 The same caveat from [Known limitations](#known-limitations) applies here:
 these byte counts are accounting-only (fidelity estimates), not measured
 runtime memory freed.
+
+## Compression methods
+
+`vq.models.list()` — despite the name, this lists `veloxquant-mlx`'s KV-cache
+**compression methods**, not LLMs (the package has no model catalog; see the
+[Overview](#overview)). Use it to discover what's available and which methods
+`veloxquant serve` can actually run:
+
+```ts
+const methods = await vq.models.list({ servableOnly: true });
+console.log(`Default serve method: ${methods.defaultServeMethod}`);
+for (const m of methods.methods.slice(0, 5)) {
+  console.log(`${m.name.padEnd(16)} ${m.family.padEnd(12)} ${m.serveTierLabel}`);
+}
+```
+
+```txt
+Default serve method: turboquant_rvq
+
+a2ats            hybrid       available
+adakv            quantization available
+age_tiered       quantization available (no prompt-cache trimming)
+amc              eviction     available (no prompt-cache trimming)
+anchorkv         hybrid       available (no prompt-cache trimming)
+```
+
+(Real output from veloxquant-mlx 0.71.1 — 43 methods total as of this
+version.) Filter by family with `vq.models.list({ family: "quantization" })`;
+valid families are `"quantization"`, `"eviction"`, and `"hybrid"`.
+
+Every method's byte-count reporting is accounting-only — see
+[Known limitations](#known-limitations) — which is also why
+`methods.accountingNote` is included directly in the result rather than left
+for callers to discover separately.
 
 ## Hardware-aware memory optimization
 
