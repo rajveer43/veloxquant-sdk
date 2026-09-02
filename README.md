@@ -11,25 +11,32 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square" alt="License"/></a>
 </p>
 
+**The JavaScript/TypeScript SDK for [VeloxQuant-MLX](https://pypi.org/project/veloxquant-mlx/).**
+Hardware-aware KV-cache memory optimization and OpenAI-compatible local
+inference on Apple Silicon — without writing Python.
+
 </div>
 
-The JavaScript/TypeScript SDK for [VeloxQuant-MLX](https://pypi.org/project/veloxquant-mlx/):
-hardware-aware KV-cache memory optimization and OpenAI-compatible local
-inference on Apple Silicon, without writing Python.
+## Overview
 
-Part of the VeloxQuant ecosystem:
+`@veloxquant/sdk` is a typed bridge, not a reimplementation: it shells out to
+the `veloxquant` CLI and talks HTTP to a `veloxquant serve` process that it
+manages for you, so quantization and hardware detection stay the
+responsibility of the underlying `veloxquant-mlx` engine.
 
-```
-VeloxQuant-MLX (Python engine)  ──┐
-                                   ├──►  @veloxquant/sdk (this package)
-VeloxQuant VS Code extension    ──┘            │
-                                                ▼
-                                    VeloxQuant Studio (macOS app)
-```
+## Contents
 
-This SDK does not reimplement quantization or hardware detection — it is a
-typed bridge that shells out to the `veloxquant` CLI and talks HTTP to a
-`veloxquant serve` process it manages for you.
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Streaming](#streaming)
+- [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
+- [Persistent model sessions](#persistent-model-sessions)
+- [CLI](#cli)
+- [Known limitations](#known-limitations)
+- [Development](#development)
+- [License](#license)
 
 ## Requirements
 
@@ -82,6 +89,8 @@ const picked = await vq.optimize({ profile: "maximum-context", seqLen: 32768 });
 // picks a method/bit-width biased toward the long-context band
 ```
 
+## Persistent model sessions
+
 Loading a model with automatic optimization keeps the server process alive
 across multiple turns instead of spinning one up per call:
 
@@ -100,26 +109,28 @@ npx veloxquant recommend   # shows detected hardware + servable methods
 npx veloxquant analyze --seq-len 32768 --head-dim 128 --n-layers 32
 ```
 
-## What v0.1 does and does not cover
+## Known limitations
 
-`veloxquant-mlx`'s `recommend` CLI (chip/RAM/model-class picker) and
-`auto-config` (workload/hardware → method picker) are two independent
-selectors in the underlying package — this SDK exposes both
-(`vq.recommendModel()` and `vq.memory` / `vq.optimize()`) rather than
-merging them, since the package itself doesn't merge them either.
+**`recommend` vs. `auto-config` stay separate.** `veloxquant-mlx`'s
+`recommend` CLI (chip/RAM/model-class picker) and `auto-config`
+(workload/hardware → method picker) are two independent selectors in the
+underlying package — this SDK exposes both (`vq.recommendModel()` and
+`vq.memory` / `vq.optimize()`) rather than merging them, since the package
+itself doesn't merge them either.
 
-Compression byte counts reported by `veloxquant-mlx` are accounting-only
-today: caches store dequantized fp16 tensors, so byte counters measure
-compression fidelity, not runtime memory actually freed. `memory.estimate()`
-surfaces this as `estimatedCompressedBytes` / `memorySavedBytes` — treat
-them as directional, not a guarantee, until the package changes this (see
-veloxquant-mlx issue #27).
+**Compression byte counts are accounting-only.** Caches store dequantized
+fp16 tensors today, so byte counters measure compression fidelity, not
+runtime memory actually freed. `memory.estimate()` surfaces this as
+`estimatedCompressedBytes` / `memorySavedBytes` — treat them as directional,
+not a guarantee, until the package changes this (see veloxquant-mlx issue
+#27).
 
-`vq.recommendModel()`'s `chip`/`ramGb` inputs are constrained to what the
-installed `veloxquant recommend` CLI actually accepts (`SUPPORTED_CHIPS`,
-`SUPPORTED_RAM_GB` exported from this package) — M1-M4 and RAM up to 128GB
-as of veloxquant-mlx 0.71.1. Passing values outside that set fails with the
-CLI's own argparse error rather than being silently widened.
+**`recommendModel()` inputs are constrained to what's installed.**
+`chip`/`ramGb` are validated against whatever the installed `veloxquant
+recommend` CLI actually accepts (`SUPPORTED_CHIPS`, `SUPPORTED_RAM_GB`
+exported from this package) — M1-M4 and RAM up to 128GB as of
+veloxquant-mlx 0.71.1. Passing values outside that set fails with the CLI's
+own argparse error rather than being silently widened.
 
 ## Development
 
@@ -134,3 +145,4 @@ npm run lint
 ## License
 
 MIT
+</content>

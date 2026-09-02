@@ -50,6 +50,9 @@
     "url": "https://github.com/rajveer43/veloxquant-sdk/issues"
   },
   "homepage": "https://github.com/rajveer43/veloxquant-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
