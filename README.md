@@ -34,6 +34,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Autopilot](#autopilot)
 - [Memory calculator](#memory-calculator)
 - [Compression methods](#compression-methods)
+- [OpenAI compatibility](#openai-compatibility)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [CLI](#cli)
@@ -215,6 +216,43 @@ const r1 = await model.chat({ prompt: "Hi" });
 const r2 = await model.chat({ prompt: "Now summarize that" });
 await model.stop();
 ```
+
+## OpenAI compatibility
+
+A server started with `vq.load()` already speaks the OpenAI chat-completions
+API — this SDK's own `chat()`/`stream()` post directly to
+`${baseUrl}/v1/chat/completions`. That means the real
+[`openai`](https://www.npmjs.com/package/openai) npm package works against it
+directly, with no wrapper class:
+
+```ts
+import OpenAI from "openai";
+import { VeloxQuant } from "@veloxquant/sdk";
+
+const vq = new VeloxQuant();
+const model = await vq.load({ model: "mlx-community/Llama-3.2-1B-Instruct-4bit", optimize: "auto" });
+
+const client = new OpenAI({ baseURL: `${model.baseUrl}/v1`, apiKey: "local" });
+const response = await client.chat.completions.create({
+  model: "mlx-community/Llama-3.2-1B-Instruct-4bit", // the served model id, not model.method
+  messages: [{ role: "user", content: "Hello" }],
+});
+```
+
+Two things to get right, both verified against a real running server:
+
+- **`baseURL` must include `/v1`** — the `openai` client appends
+  `/chat/completions` itself.
+- **`model` in the request must be the actual served model id**, not
+  `model.method` (that's the KV-cache compression method name, e.g. `"kivi"`
+  — passing it as `model` is rejected with a 404, since the server is pinned
+  to one model per process and treats `model` as a routing check, not a free
+  label).
+
+A full runnable version (including streaming) is at
+[`examples/openai-client.ts`](examples/openai-client.ts). `openai` is not a
+dependency of this package — install it yourself if you want to use it this
+way.
 
 ## CLI
 
