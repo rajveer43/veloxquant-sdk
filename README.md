@@ -87,6 +87,9 @@ const estimate = await vq.memory.estimate({ seqLen: 32768, headDim: 128, nLayers
 
 const picked = await vq.optimize({ profile: "maximum-context", seqLen: 32768 });
 // picks a method/bit-width biased toward the long-context band
+
+const recommendation = await vq.recommendModel({ modelClass: "7B", goal: "max_context" });
+// chip/ramGb auto-detected from this machine when omitted — pass them explicitly to override
 ```
 
 ## Persistent model sessions

@@ -64,8 +64,10 @@ export type ModelClass = '1B' | '3B' | '7B' | '14B' | '32B';
 export type Goal = 'everyday' | 'max_key_accounting' | 'max_context' | 'best_quality' | 'constant_memory';
 
 export interface RecommendInput {
-  chip: Chip;
-  ramGb: RamGb;
+  /** Defaults to the detected chip (via system.info()) when omitted. */
+  chip?: Chip;
+  /** Defaults to the detected unified memory, rounded down to the nearest supported tier, when omitted. */
+  ramGb?: RamGb;
   modelClass: ModelClass;
   goal: Goal;
   seqLen?: number;

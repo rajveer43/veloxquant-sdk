@@ -1,7 +1,7 @@
 export { VeloxQuant, VeloxQuantModel } from './client.js';
 export { getSystemInfo } from './system.js';
 export { autoConfig, estimateMemory } from './memory.js';
-export { recommend, SUPPORTED_CHIPS, SUPPORTED_RAM_GB } from './recommend.js';
+export { recommend, normalizeChip, normalizeRamGb, SUPPORTED_CHIPS, SUPPORTED_RAM_GB } from './recommend.js';
 export { listMethods } from './methods.js';
 export { optimize } from './optimize.js';
 export { startServer } from './serve.js';
