@@ -5,6 +5,7 @@ export { autoConfig, estimateMemory } from './memory.js';
 export { recommend, normalizeChip, normalizeRamGb, SUPPORTED_CHIPS, SUPPORTED_RAM_GB } from './recommend.js';
 export { listMethods } from './methods.js';
 export { optimize } from './optimize.js';
+export { benchmark } from './benchmark.js';
 export { startServer } from './serve.js';
 export { chatCompletion, chatStream } from './chat.js';
 export { formatBytes } from './cli/format.js';
@@ -16,6 +17,7 @@ export {
 } from './python/interpreter.js';
 
 export type { AutopilotInput } from './autopilot.js';
+export type { BenchmarkInput, BenchmarkResult } from './benchmark.js';
 
 export type {
   VeloxQuantOptions,

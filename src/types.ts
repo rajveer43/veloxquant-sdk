@@ -162,6 +162,7 @@ export interface ServeHandle {
   model: string;
   method: string;
   port: number;
+  pid: number;
   stop(): Promise<void>;
 }
 

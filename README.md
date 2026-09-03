@@ -37,6 +37,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [OpenAI compatibility](#openai-compatibility)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
+- [Benchmarking](#benchmarking)
 - [CLI](#cli)
 - [Known limitations](#known-limitations)
 - [Development](#development)
@@ -216,6 +217,50 @@ const r1 = await model.chat({ prompt: "Hi" });
 const r2 = await model.chat({ prompt: "Now summarize that" });
 await model.stop();
 ```
+
+## Benchmarking
+
+`vq.benchmark()` measures tokens/sec, time-to-first-token, and resident
+memory (RSS) for a model on this machine — real numbers from your own
+hardware, not a README claim:
+
+```ts
+import { VeloxQuant } from "@veloxquant/sdk";
+
+const vq = new VeloxQuant();
+const result = await vq.benchmark({ model: "mlx-community/Llama-3.2-1B-Instruct-4bit" });
+
+console.log(result.toMarkdown());
+```
+
+```txt
+VeloxQuant Benchmark
+
+Model: mlx-community/Llama-3.2-1B-Instruct-4bit
+Machine: Apple M4
+RAM: 24GB
+
+Tokens/sec: 124.8
+TTFT: 237ms
+
+turboquant_rvq resident memory: 1055MB
+kivi resident memory: 1052MB
+Resident memory reduced: 0%
+```
+
+(Real output from a local run — requires real Apple Silicon hardware and the
+model already downloaded; there's no way to run this in CI.)
+
+Tokens/sec and TTFT are measured at the SDK boundary from `stream()` chunk
+timestamps. The resident-memory numbers are genuine measured RSS of the
+`veloxquant serve` subprocess (via `ps`) — **not** the accounting-only byte
+counts `vq.memory.estimate()` reports (see
+[Known limitations](#known-limitations)). Because of that, compression is
+not guaranteed to reduce measured RSS: `toMarkdown()` reports an increase
+honestly rather than hiding it, since idle RSS mostly reflects model
+weights, and KV-cache compression's effect is small or even negative for a
+short prompt against a small model — measured directly against
+`Llama-3.2-1B-Instruct-4bit` above.
 
 ## OpenAI compatibility
 

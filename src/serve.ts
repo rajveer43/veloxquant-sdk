@@ -66,6 +66,7 @@ export async function startServer(
           model: options.model,
           method,
           port,
+          pid: child.pid ?? -1,
           stop: async () => {
             child.kill('SIGTERM');
           },

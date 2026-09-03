@@ -39,6 +39,10 @@ export class VeloxQuantModel {
     return this.handle.method;
   }
 
+  get pid(): number {
+    return this.handle.pid;
+  }
+
   async chat(input: Omit<ChatInput, 'model'> & { model?: string }): Promise<ChatResponse> {
     return chatCompletion(this.handle, { ...input, model: input.model ?? this.handle.model });
   }
