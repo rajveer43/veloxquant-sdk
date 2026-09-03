@@ -36,6 +36,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Compression methods](#compression-methods)
 - [OpenAI compatibility](#openai-compatibility)
 - [Vercel AI SDK](#vercel-ai-sdk)
+- [Tool-calling agent](#tool-calling-agent)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [Benchmarking](#benchmarking)
@@ -330,6 +331,55 @@ else in this SDK.
 `ai` and `@ai-sdk/openai-compatible` are optional peer dependencies — install
 them yourself to use this subpath. A full runnable version (including
 streaming) is at [`examples/ai-sdk.ts`](examples/ai-sdk.ts).
+
+## Tool-calling agent
+
+`vq.agent()` loads a model and gives you a single-turn tool-calling loop:
+register tools, call `run()`, and the model calls tools, gets their results
+fed back, and produces a final answer.
+
+```ts
+const agent = await vq.agent({ model: "mlx-community/Qwen3-4B-4bit", optimize: "auto" });
+
+agent.tool({
+  name: "get_weather",
+  description: "Get the current weather for a location",
+  parameters: {
+    type: "object",
+    properties: { location: { type: "string", description: "City name" } },
+    required: ["location"],
+  },
+  execute: async ({ location }) => ({ location, tempC: 22, condition: "sunny" }),
+});
+
+const result = await agent.run("What's the weather in Tokyo? Do I need an umbrella?");
+console.log(result.text);
+// "The current weather in Tokyo is 22°C with sunny conditions. ... you likely don't need an umbrella."
+
+await agent.stop();
+```
+
+This is built on **real, model-native tool-calling** — not prompt-engineered
+parsing in this SDK. `veloxquant serve` wraps `mlx_lm.server`, which checks
+the model's own tokenizer for `has_tool_calling` and parses `tool_calls` out
+of generation using the tokenizer's own chat template and tool-call tokens.
+Tool definitions and results use the exact OpenAI `tools`/`tool_calls` wire
+shape (verified against a real running server with
+`mlx-community/Qwen3-4B-4bit`) rather than a bespoke schema, so the same
+tool definitions work whether the request goes through `agent.tool()`,
+`vq.chat({ tools })` directly, or the raw OpenAI client from
+[OpenAI compatibility](#openai-compatibility).
+
+Not every model supports tool-calling — it depends on the model's tokenizer
+having a tool-calling chat template. If a model doesn't call your tool as
+expected, that's the first thing to check.
+
+**Scope**: single-turn tool calling only (call tools → feed results back →
+repeat until the model stops calling tools or `maxSteps`, default 8, is
+reached). No MCP support and no multi-step planning beyond that loop — both
+are natural follow-ups but a separate, larger scope.
+
+A full runnable version is at [`examples/agent.ts`](examples/agent.ts).
 
 ## CLI
 

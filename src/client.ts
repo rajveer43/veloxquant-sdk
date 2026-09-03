@@ -5,6 +5,7 @@ import { listMethods } from './methods.js';
 import { optimize } from './optimize.js';
 import { startServer } from './serve.js';
 import { chatCompletion, chatStream } from './chat.js';
+import { Agent } from './agent.js';
 import type {
   ChatInput,
   ChatResponse,
@@ -123,6 +124,18 @@ export class VeloxQuant {
     const handle = await startServer({ ...loadOptions, method, bits }, this.options);
     this.activeServers.push(handle);
     return new VeloxQuantModel(handle);
+  }
+
+  /**
+   * Loads `model` and returns a tool-calling Agent over it. Register tools
+   * with `agent.tool()`, then call `agent.run(prompt)`, and `agent.stop()`
+   * when done — lifecycle stays explicit and visible to the caller, same as
+   * `load()`, rather than being hidden inside the factory with no clear
+   * place to release the server process.
+   */
+  async agent(loadOptions: LoadOptions): Promise<Agent> {
+    const model = await this.load(loadOptions);
+    return new Agent(model);
   }
 
   /** Convenience one-shot: load a model, send one chat request, stop the server. */

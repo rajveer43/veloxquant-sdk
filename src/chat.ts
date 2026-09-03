@@ -1,4 +1,4 @@
-import type { ChatInput, ChatMessage, ChatResponse, ServeHandle, StreamChunk } from './types.js';
+import type { ChatInput, ChatMessage, ChatResponse, ServeHandle, StreamChunk, ToolCall } from './types.js';
 
 function toMessages(input: ChatInput): ChatMessage[] {
   if (input.messages && input.messages.length > 0) return input.messages;
@@ -6,8 +6,35 @@ function toMessages(input: ChatInput): ChatMessage[] {
   throw new Error('chat() requires either `messages` or `prompt`.');
 }
 
+function toWireMessage(m: ChatMessage): Record<string, unknown> {
+  const wire: Record<string, unknown> = { role: m.role, content: m.content };
+  if (m.toolCalls && m.toolCalls.length > 0) {
+    wire.tool_calls = m.toolCalls.map((tc) => ({
+      id: tc.id,
+      type: 'function',
+      function: { name: tc.name, arguments: tc.argumentsJson },
+    }));
+  }
+  if (m.toolCallId) wire.tool_call_id = m.toolCallId;
+  return wire;
+}
+
+interface OpenAIToolCallPayload {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+function toToolCalls(raw: OpenAIToolCallPayload[] | undefined): ToolCall[] | null {
+  if (!raw || raw.length === 0) return null;
+  return raw.map((tc) => ({ id: tc.id, name: tc.function.name, argumentsJson: tc.function.arguments }));
+}
+
 interface OpenAIChatCompletionResponse {
-  choices: Array<{ message?: { content: string }; finish_reason: string | null }>;
+  choices: Array<{
+    message?: { content: string; tool_calls?: OpenAIToolCallPayload[] };
+    finish_reason: string | null;
+  }>;
   model: string;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
@@ -19,10 +46,11 @@ export async function chatCompletion(handle: ServeHandle, input: ChatInput): Pro
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       model: input.model,
-      messages: toMessages(input),
+      messages: toMessages(input).map(toWireMessage),
       max_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
+      tools: input.tools,
       stream: false,
     }),
   });
@@ -45,6 +73,7 @@ export async function chatCompletion(handle: ServeHandle, input: ChatInput): Pro
           totalTokens: payload.usage.total_tokens,
         }
       : null,
+    toolCalls: toToolCalls(choice?.message?.tool_calls),
   };
 }
 

@@ -131,9 +131,35 @@ export interface OptimizeResult extends AutoConfigResult {
   profile: OptimizeProfile;
 }
 
+export interface ToolCall {
+  id: string;
+  name: string;
+  /** Raw JSON string as the model produced it — parse with JSON.parse() and validate before use. */
+  argumentsJson: string;
+}
+
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  /** Only on assistant messages that called a tool. */
+  toolCalls?: ToolCall[];
+  /** Only on tool-role messages: which tool call this result answers. */
+  toolCallId?: string;
+}
+
+/**
+ * A tool definition in the OpenAI `tools` request-parameter shape — reused
+ * deliberately rather than inventing a bespoke schema, since the underlying
+ * mlx_lm server (which veloxquant serve wraps) already parses tool calls
+ * against a tokenizer-native chat template keyed on this exact shape.
+ */
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters: Record<string, unknown>;
+  };
 }
 
 export interface ChatInput {
@@ -143,6 +169,7 @@ export interface ChatInput {
   maxTokens?: number;
   temperature?: number;
   topP?: number;
+  tools?: ToolDefinition[];
 }
 
 export interface ChatResponse {
@@ -150,6 +177,7 @@ export interface ChatResponse {
   model: string;
   finishReason: string | null;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null;
+  toolCalls: ToolCall[] | null;
 }
 
 export interface StreamChunk {
