@@ -35,6 +35,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Memory calculator](#memory-calculator)
 - [Compression methods](#compression-methods)
 - [OpenAI compatibility](#openai-compatibility)
+- [Vercel AI SDK](#vercel-ai-sdk)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [Benchmarking](#benchmarking)
@@ -279,7 +280,7 @@ const model = await vq.load({ model: "mlx-community/Llama-3.2-1B-Instruct-4bit",
 
 const client = new OpenAI({ baseURL: `${model.baseUrl}/v1`, apiKey: "local" });
 const response = await client.chat.completions.create({
-  model: "mlx-community/Llama-3.2-1B-Instruct-4bit", // the served model id, not model.method
+  model: model.model, // the served model id — NOT model.method (that's the compression method name)
   messages: [{ role: "user", content: "Hello" }],
 });
 ```
@@ -288,16 +289,47 @@ Two things to get right, both verified against a real running server:
 
 - **`baseURL` must include `/v1`** — the `openai` client appends
   `/chat/completions` itself.
-- **`model` in the request must be the actual served model id**, not
-  `model.method` (that's the KV-cache compression method name, e.g. `"kivi"`
-  — passing it as `model` is rejected with a 404, since the server is pinned
-  to one model per process and treats `model` as a routing check, not a free
-  label).
+- **`model` in the request must be the actual served model id** —
+  `model.model`, not `model.method` (that's the KV-cache compression method
+  name, e.g. `"kivi"` — passing it as `model` is rejected with a 404, since
+  the server is pinned to one model per process and treats `model` as a
+  routing check, not a free label).
 
 A full runnable version (including streaming) is at
 [`examples/openai-client.ts`](examples/openai-client.ts). `openai` is not a
 dependency of this package — install it yourself if you want to use it this
 way.
+
+## Vercel AI SDK
+
+`@veloxquant/sdk/ai-sdk` wraps an already-loaded model as a Vercel AI SDK
+`LanguageModelV4`, for use with `generateText()`/`streamText()`:
+
+```ts
+import { generateText, streamText } from "ai";
+import { veloxquant } from "@veloxquant/sdk/ai-sdk";
+import { VeloxQuant } from "@veloxquant/sdk";
+
+const vq = new VeloxQuant();
+const model = await vq.load({ model: "mlx-community/Llama-3.2-1B-Instruct-4bit", optimize: "auto" });
+
+const result = await generateText({ model: veloxquant(model), prompt: "Hello!" });
+console.log(result.text);
+
+await model.stop();
+```
+
+`veloxquant()` takes an already-running `VeloxQuantModel`, not a bare model
+name — `createOpenAICompatible()` (the AI SDK helper this is built on) is
+synchronous and needs a `baseUrl` up front, but getting one requires an
+async `vq.load()` first, and an AI SDK provider has no disposal hook where
+this function could safely call `model.stop()` for you. Loading (and
+stopping) the model stays the caller's responsibility, same as everywhere
+else in this SDK.
+
+`ai` and `@ai-sdk/openai-compatible` are optional peer dependencies — install
+them yourself to use this subpath. A full runnable version (including
+streaming) is at [`examples/ai-sdk.ts`](examples/ai-sdk.ts).
 
 ## CLI
 

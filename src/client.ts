@@ -39,6 +39,11 @@ export class VeloxQuantModel {
     return this.handle.method;
   }
 
+  /** The served model id (e.g. "mlx-community/Qwen3-8B-4bit") — use this as `model` in OpenAI-compatible requests, not `method` (that's the KV-cache compression method name). */
+  get model(): string {
+    return this.handle.model;
+  }
+
   get pid(): number {
     return this.handle.pid;
   }

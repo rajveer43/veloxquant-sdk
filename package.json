@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./ai-sdk": {
+      "types": "./dist/ai-sdk.d.ts",
+      "import": "./dist/ai-sdk.js",
+      "require": "./dist/ai-sdk.cjs"
     }
   },
   "bin": {
@@ -62,14 +67,30 @@
     "test:watch": "node --import tsx --test --watch test/unit/*.test.ts",
     "prepublishOnly": "npm run build"
   },
+  "peerDependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.0",
+    "ai": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/openai-compatible": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.43",
+    "@ai-sdk/provider": "^4.0.10",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "ai": "^7.0.91",
     "eslint": "^8.56.0",
     "openai": "^7.9.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "zod": "^3.25.76"
   }
 }
