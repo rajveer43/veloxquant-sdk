@@ -1,5 +1,5 @@
 import type { VeloxQuantModel } from './client.js';
-import type { ChatMessage, ChatResponse, ToolDefinition } from './types.js';
+import type { ChatMessage, ChatResponse, ResponseFormat, ToolDefinition } from './types.js';
 
 export interface ConversationOptions {
   system?: string;
@@ -10,6 +10,7 @@ export interface ConversationSendOptions {
   temperature?: number;
   topP?: number;
   tools?: ToolDefinition[];
+  responseFormat?: ResponseFormat;
 }
 
 /**
@@ -45,6 +46,7 @@ export class Conversation {
       temperature: options.temperature,
       topP: options.topP,
       tools: options.tools,
+      responseFormat: options.responseFormat,
     });
 
     this.history.push({

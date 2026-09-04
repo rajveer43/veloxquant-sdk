@@ -169,6 +169,20 @@ export interface ToolDefinition {
   };
 }
 
+/**
+ * Requests JSON-shaped output from the model. Not backed by grammar-
+ * constrained decoding — mlx_lm's server (which veloxquant serve wraps)
+ * doesn't parse or honor this field at all (verified against the installed
+ * mlx_lm/server.py: handle_chat_completions only reads messages/tools/
+ * role_mapping off the request body, see issue #14 investigation comment),
+ * so this is implemented as a best-effort prompt-injection fallback:
+ * formatting instructions (+ schema, for "json_schema") get appended to the
+ * outgoing messages, and the response text is parsed as JSON afterward.
+ * It is still sent on the wire request too, in case a future server version
+ * starts honoring it natively — harmless no-op today either way.
+ */
+export type ResponseFormat = { type: 'json_object' } | { type: 'json_schema'; schema: Record<string, unknown> };
+
 export interface ChatInput {
   model: string;
   messages?: ChatMessage[];
@@ -177,6 +191,7 @@ export interface ChatInput {
   temperature?: number;
   topP?: number;
   tools?: ToolDefinition[];
+  responseFormat?: ResponseFormat;
 }
 
 export interface ChatResponse {
@@ -185,6 +200,8 @@ export interface ChatResponse {
   finishReason: string | null;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null;
   toolCalls: ToolCall[] | null;
+  /** Parsed JSON when `responseFormat` was requested and parsing succeeded; `null` when `responseFormat` was not requested. Parsing failure throws instead of returning null — see chatCompletion() in src/chat.ts. */
+  json: unknown | null;
 }
 
 export interface StreamChunk {

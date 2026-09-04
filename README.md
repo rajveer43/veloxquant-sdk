@@ -41,6 +41,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [Multi-turn conversations](#multi-turn-conversations)
+- [Structured output / JSON mode](#structured-output--json-mode)
 - [Benchmarking](#benchmarking)
 - [CLI](#cli)
 - [Known limitations](#known-limitations)
@@ -262,6 +263,47 @@ If you pass `tools` to `send()` and the model calls one, you're responsible
 for executing it and feeding the result back as a `tool`-role message
 yourself — `Conversation` only handles history bookkeeping, not a second
 agent loop (see [Tool-calling agent](#tool-calling-agent) for that).
+
+## Structured output / JSON mode
+
+Ask the model for JSON back with `responseFormat`:
+
+```ts
+const result = await model.chat({
+  messages: [{ role: "user", content: "Extract the name and age from: John is 30." }],
+  responseFormat: {
+    type: "json_schema",
+    schema: {
+      type: "object",
+      properties: { name: { type: "string" }, age: { type: "number" } },
+      required: ["name", "age"],
+    },
+  },
+});
+
+console.log(result.json); // { name: "John", age: 30 } — already JSON.parse()'d
+```
+
+`{ type: "json_object" }` works the same way without a schema, for "just give
+me valid JSON, any shape."
+
+**This is not a hard guarantee.** The `mlx_lm` server this SDK wraps has no
+native support for OpenAI's `response_format` field — it's not
+grammar-constrained decoding under the hood. Under the hood this is a
+best-effort prompt-injection fallback: formatting instructions (and the
+schema, for `json_schema`) are appended to the outgoing messages, and the
+model's text response is parsed as JSON afterward (markdown code fences are
+stripped first, since models sometimes wrap JSON in them despite being told
+not to). `result.json` is `null` when `responseFormat` wasn't requested; when
+it *was* requested and the model's output fails to parse, `chat()` throws a
+descriptive error instead of silently returning `null` (which would be
+indistinguishable from "not requested"). `responseFormat` is still sent on
+the wire request too, in case a future server version starts honoring it
+natively — it's an inert no-op today either way. See [issue
+#14](https://github.com/rajveer43/veloxquant-sdk/issues/14) for the
+investigation into `mlx_lm/server.py` behind this.
+
+`model.conversation().send()` accepts the same `responseFormat` option.
 
 ## Benchmarking
 
