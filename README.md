@@ -37,6 +37,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Local model management](#local-model-management)
 - [OpenAI compatibility](#openai-compatibility)
 - [Vercel AI SDK](#vercel-ai-sdk)
+- [LangChain.js](#langchainjs)
 - [Tool-calling agent](#tool-calling-agent)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
@@ -416,6 +417,56 @@ else in this SDK.
 `ai` and `@ai-sdk/openai-compatible` are optional peer dependencies — install
 them yourself to use this subpath. A full runnable version (including
 streaming) is at [`examples/ai-sdk.ts`](examples/ai-sdk.ts).
+
+## LangChain.js
+
+`@veloxquant/sdk/langchain` wraps an already-loaded model as a LangChain.js
+`BaseChatModel`, for use with `invoke()`, LCEL chains, and agents:
+
+```ts
+import { VeloxQuant } from "@veloxquant/sdk";
+import { VeloxQuantChatModel } from "@veloxquant/sdk/langchain";
+
+const vq = new VeloxQuant();
+const model = await vq.load({ model: "mlx-community/Qwen3-4B-4bit", optimize: "auto" });
+const chatModel = new VeloxQuantChatModel(model);
+
+const result = await chatModel.invoke("Explain quantum computing simply.");
+console.log(result.content);
+
+await model.stop();
+```
+
+Works in LCEL chains the same way any other `BaseChatModel` does:
+
+```ts
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const prompt = ChatPromptTemplate.fromMessages([
+  ["system", "You are a terse assistant."],
+  ["human", "{question}"],
+]);
+const chain = prompt.pipe(chatModel).pipe(new StringOutputParser());
+console.log(await chain.invoke({ question: "What's the capital of France?" }));
+```
+
+Same lifecycle rule as `@veloxquant/sdk/ai-sdk`: `VeloxQuantChatModel` takes
+an already-running `VeloxQuantModel`, not a bare model name, since loading is
+async and this SDK has no disposal hook to call `model.stop()` on your
+behalf — that stays the caller's responsibility.
+
+**Streaming is not implemented in this adapter.** `invoke()` and LCEL chains
+work; `.stream()` falls back to buffering the full `invoke()` result rather
+than truly streaming tokens, since `_streamResponseChunks()` isn't
+overridden. This is a known, intentional gap — not a partially-working
+implementation — and a natural follow-up if streaming through LangChain
+becomes a real need.
+
+`@langchain/core` is an optional peer dependency — install it yourself to use
+this subpath. A full runnable version (direct `invoke()` and an LCEL chain,
+verified against a real running server) is at
+[`examples/langchain.ts`](examples/langchain.ts).
 
 ## Tool-calling agent
 
