@@ -1,6 +1,6 @@
 {
   "name": "@veloxquant/sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "JavaScript/TypeScript SDK for VeloxQuant-MLX: hardware-aware memory optimization and OpenAI-compatible local inference on Apple Silicon.",
   "license": "MIT",
   "author": "Rajveer Rathod",
