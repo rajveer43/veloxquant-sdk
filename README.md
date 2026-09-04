@@ -473,6 +473,42 @@ npx veloxquant doctor      # checks Apple Silicon + veloxquant-mlx install
 npx veloxquant recommend   # shows detected hardware + servable methods
 npx veloxquant recommend --model-class 7B --goal everyday  # full recommendation (chip/RAM auto-detected)
 npx veloxquant analyze --seq-len 32768 --head-dim 128 --n-layers 32
+npx veloxquant serve --model mlx-community/Qwen3-4B-4bit   # persistent local server
+```
+
+`vq serve` starts a long-running local server from the terminal — useful for
+pointing a separate frontend, `curl`, or another language's OpenAI client at
+it without writing a Node script:
+
+```bash
+npx veloxquant serve --model mlx-community/Qwen3-4B-4bit --optimize
+```
+
+```txt
+veloxquant serve ready
+  baseUrl: http://127.0.0.1:53021
+  model:   mlx-community/Qwen3-4B-4bit
+  method:  turboquant_rvq
+  pid:     61481
+
+Press Ctrl+C to stop.
+```
+
+(Real output from a local run.) It reuses the same `startServer()` the SDK's
+`vq.load()` calls internally — same `VELOXQUANT_READY` handshake, same
+`ServeHandle` shutdown path — so behavior is identical whether the server is
+started from JS or from this CLI command. Ctrl+C (or `SIGTERM`) stops the
+underlying `veloxquant serve` subprocess cleanly rather than leaving it
+orphaned.
+
+```
+--model <id>      Model to serve (required)
+--method <name>   KV-cache compression method (default: turboquant_rvq)
+--bits <n>        Bit width override
+--port <n>        Port to listen on (default: a free port)
+--host <addr>     Host to bind (default: 127.0.0.1)
+--optimize        Auto-tune method/bits/knobs for detected hardware
+--json            Print the ready state as JSON instead of formatted text
 ```
 
 Every command accepts `--json` for scripting/CI use — valid, parseable JSON on
