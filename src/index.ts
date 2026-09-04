@@ -48,6 +48,7 @@ export type {
   ChatMessage,
   ChatInput,
   ChatResponse,
+  ResponseFormat,
   ToolCall,
   ToolDefinition,
   StreamChunk,

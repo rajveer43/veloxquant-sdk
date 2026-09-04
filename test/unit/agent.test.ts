@@ -29,7 +29,7 @@ function fakeModel(responses: ChatResponse[]): VeloxQuantModel & { calls: ChatIn
 }
 
 function textResponse(text: string): ChatResponse {
-  return { text, model: 'fake-model', finishReason: 'stop', usage: null, toolCalls: null };
+  return { text, model: 'fake-model', finishReason: 'stop', usage: null, toolCalls: null, json: null };
 }
 
 function toolCallResponse(name: string, argumentsJson: string, id = 'call_1'): ChatResponse {
@@ -39,6 +39,7 @@ function toolCallResponse(name: string, argumentsJson: string, id = 'call_1'): C
     finishReason: 'tool_calls',
     usage: null,
     toolCalls: [{ id, name, argumentsJson }],
+    json: null,
   };
 }
 

@@ -26,7 +26,7 @@ function fakeModel(responses: ChatResponse[]): VeloxQuantModel & { calls: ChatIn
 }
 
 function textResponse(text: string): ChatResponse {
-  return { text, model: 'fake-model', finishReason: 'stop', usage: null, toolCalls: null };
+  return { text, model: 'fake-model', finishReason: 'stop', usage: null, toolCalls: null, json: null };
 }
 
 test('Conversation.send(): appends user + assistant turns and returns the response', async () => {
@@ -78,6 +78,7 @@ test('Conversation.send(): passes through tool-call responses into history', asy
     finishReason: 'tool_calls',
     usage: null,
     toolCalls: [{ id: 'call_1', name: 'get_weather', argumentsJson: '{"location":"Tokyo"}' }],
+    json: null,
   };
   const model = fakeModel([toolCallResp]);
   const convo = new Conversation(model);
