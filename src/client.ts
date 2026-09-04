@@ -2,14 +2,17 @@ import { getSystemInfo } from './system.js';
 import { autoConfig, estimateMemory } from './memory.js';
 import { recommend } from './recommend.js';
 import { listMethods } from './methods.js';
+import { listLocalModels } from './localModels.js';
 import { optimize } from './optimize.js';
 import { startServer } from './serve.js';
 import { chatCompletion, chatStream } from './chat.js';
 import { Agent } from './agent.js';
+import { Conversation, type ConversationOptions } from './conversation.js';
 import type {
   ChatInput,
   ChatResponse,
   LoadOptions,
+  LocalModel,
   MemoryEstimate,
   MemoryEstimateInput,
   MethodsResult,
@@ -57,6 +60,11 @@ export class VeloxQuantModel {
     return chatStream(this.handle, { ...input, model: input.model ?? this.handle.model });
   }
 
+  /** Starts a stateful multi-turn conversation over this model — see Conversation in src/conversation.ts. */
+  conversation(options: ConversationOptions = {}): Conversation {
+    return new Conversation(this, options);
+  }
+
   async stop(): Promise<void> {
     await this.handle.stop();
   }
@@ -89,6 +97,8 @@ export class VeloxQuant {
   readonly models = {
     list: (filter: { servableOnly?: boolean; family?: string } = {}): Promise<MethodsResult> =>
       listMethods(filter, this.options),
+    /** Lists model weights already downloaded to the local Hugging Face cache (read-only). */
+    local: (): Promise<LocalModel[]> => listLocalModels(this.options),
   };
 
   async recommendModel(input: RecommendInput): Promise<RecommendResult> {
