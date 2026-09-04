@@ -34,11 +34,13 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Autopilot](#autopilot)
 - [Memory calculator](#memory-calculator)
 - [Compression methods](#compression-methods)
+- [Local model management](#local-model-management)
 - [OpenAI compatibility](#openai-compatibility)
 - [Vercel AI SDK](#vercel-ai-sdk)
 - [Tool-calling agent](#tool-calling-agent)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
+- [Multi-turn conversations](#multi-turn-conversations)
 - [Benchmarking](#benchmarking)
 - [CLI](#cli)
 - [Known limitations](#known-limitations)
@@ -192,6 +194,23 @@ Every method's byte-count reporting is accounting-only — see
 `methods.accountingNote` is included directly in the result rather than left
 for callers to discover separately.
 
+## Local model management
+
+`vq.models.local()` lists model weights already downloaded to this machine's
+Hugging Face cache — distinct from `vq.models.list()` above, which lists
+compression *methods*, not model weights. Read-only: no delete/pull support
+yet.
+
+```ts
+const local = await vq.models.local();
+// [{ id: "mlx-community/Qwen3-4B-4bit", sizeBytes: 15947227, lastUsedAt: Date }, ...]
+```
+
+Backed by `huggingface_hub`'s own cache scanner (`scan_cache_dir()`), which
+already resolves `HF_HOME`/`HF_HUB_CACHE` and correctly deduplicates the
+content-addressed blob layout — not a hand-rolled `du` over the cache
+directory.
+
 ## Hardware-aware memory optimization
 
 ```ts
@@ -219,6 +238,30 @@ const r1 = await model.chat({ prompt: "Hi" });
 const r2 = await model.chat({ prompt: "Now summarize that" });
 await model.stop();
 ```
+
+## Multi-turn conversations
+
+`model.conversation()` bookkeeps chat history automatically so you don't have
+to hand-roll a `ChatMessage[]` and re-append it after every turn:
+
+```ts
+const model = await vq.load({ model: "mlx-community/Qwen3-4B-4bit", optimize: "auto" });
+const convo = model.conversation({ system: "You are a terse assistant." });
+
+const r1 = await convo.send("What's the capital of France?");
+console.log(r1.text); // "Paris."
+
+const r2 = await convo.send("And its population?");
+console.log(r2.text); // has full history context
+
+console.log(convo.messages); // read-only view of accumulated ChatMessage[]
+convo.reset(); // clears history, keeps the system prompt
+```
+
+If you pass `tools` to `send()` and the model calls one, you're responsible
+for executing it and feeding the result back as a `tool`-role message
+yourself — `Conversation` only handles history bookkeeping, not a second
+agent loop (see [Tool-calling agent](#tool-calling-agent) for that).
 
 ## Benchmarking
 

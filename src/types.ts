@@ -117,6 +117,13 @@ export interface MethodsResult {
   methods: MethodInfo[];
 }
 
+/** A model's weights as cached on disk (via the Hugging Face hub cache). */
+export interface LocalModel {
+  id: string;
+  sizeBytes: number;
+  lastUsedAt: Date | null;
+}
+
 export type OptimizeProfile = 'speed' | 'balanced' | 'memory' | 'maximum-context';
 
 export interface OptimizeInput {
