@@ -1,6 +1,7 @@
 import { runDoctor } from './doctor.js';
 import { runAnalyze } from './analyze.js';
 import { runRecommend } from './recommend.js';
+import { runServe } from './serve.js';
 import type { Goal, ModelClass } from '../types.js';
 
 function parseIntArg(argv: string[], flag: string): number | undefined {
@@ -27,6 +28,7 @@ Usage:
   vq doctor                    Check that veloxquant-mlx is installed and ready
   vq recommend [options]       Show detected hardware and servable methods
   vq analyze [options]         Estimate KV-cache memory for a workload
+  vq serve --model <id>        Start a persistent local model server
 
 All commands accept --json for machine-readable output.
 
@@ -39,6 +41,14 @@ Analyze options:
   --seq-len <n>     Sequence length in tokens (default: 4096)
   --n-layers <n>    Number of layers (default: 1)
   --batch-size <n>  Batch size (default: 1)
+
+Serve options:
+  --model <id>      Model to serve, e.g. mlx-community/Qwen3-4B-4bit (required)
+  --method <name>   KV-cache compression method (default: turboquant_rvq)
+  --bits <n>        Bit width override
+  --port <n>        Port to listen on (default: a free port)
+  --host <addr>     Host to bind (default: 127.0.0.1)
+  --optimize        Auto-tune method/bits/knobs for detected hardware
 `);
 }
 
@@ -61,6 +71,16 @@ export async function main(argv: string[]): Promise<number> {
         seqLen: parseIntArg(rest, '--seq-len'),
         nLayers: parseIntArg(rest, '--n-layers'),
         batchSize: parseIntArg(rest, '--batch-size'),
+        json,
+      });
+    case 'serve':
+      return runServe({
+        model: parseStringArg(rest, '--model'),
+        method: parseStringArg(rest, '--method'),
+        bits: parseIntArg(rest, '--bits'),
+        port: parseIntArg(rest, '--port'),
+        host: parseStringArg(rest, '--host'),
+        optimize: hasFlag(rest, '--optimize'),
         json,
       });
     case '--help':
