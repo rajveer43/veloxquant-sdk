@@ -2,6 +2,7 @@ import { runDoctor } from './doctor.js';
 import { runAnalyze } from './analyze.js';
 import { runRecommend } from './recommend.js';
 import { runServe } from './serve.js';
+import { runModelsDelete, runModelsPull } from './models.js';
 import type { Goal, ModelClass } from '../types.js';
 
 function parseIntArg(argv: string[], flag: string): number | undefined {
@@ -29,6 +30,8 @@ Usage:
   vq recommend [options]       Show detected hardware and servable methods
   vq analyze [options]         Estimate KV-cache memory for a workload
   vq serve --model <id>        Start a persistent local model server
+  vq models pull <id>          Download a model's weights into the local HF cache
+  vq models delete <id>        Delete a model's weights from the local HF cache
 
 All commands accept --json for machine-readable output.
 
@@ -83,6 +86,15 @@ export async function main(argv: string[]): Promise<number> {
         optimize: hasFlag(rest, '--optimize'),
         json,
       });
+    case 'models': {
+      const [subcommand, ...modelArgs] = rest;
+      const modelId = modelArgs.find((a) => !a.startsWith('--'));
+      if (subcommand === 'pull') return runModelsPull({ modelId, json });
+      if (subcommand === 'delete') return runModelsDelete({ modelId, json });
+      console.error(`Unknown "vq models" subcommand: ${subcommand}\n`);
+      printHelp();
+      return 1;
+    }
     case '--help':
     case '-h':
     case undefined:

@@ -4,7 +4,7 @@ export { getSystemInfo } from './system.js';
 export { autoConfig, estimateMemory } from './memory.js';
 export { recommend, normalizeChip, normalizeRamGb, SUPPORTED_CHIPS, SUPPORTED_RAM_GB } from './recommend.js';
 export { listMethods } from './methods.js';
-export { listLocalModels } from './localModels.js';
+export { listLocalModels, pullLocalModel, deleteLocalModel } from './localModels.js';
 export { optimize } from './optimize.js';
 export { benchmark } from './benchmark.js';
 export { Agent, createAgent } from './agent.js';
@@ -42,6 +42,8 @@ export type {
   MethodInfo,
   MethodsResult,
   LocalModel,
+  PullModelResult,
+  DeleteModelResult,
   OptimizeProfile,
   OptimizeInput,
   OptimizeResult,

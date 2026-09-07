@@ -200,8 +200,7 @@ for callers to discover separately.
 
 `vq.models.local()` lists model weights already downloaded to this machine's
 Hugging Face cache — distinct from `vq.models.list()` above, which lists
-compression *methods*, not model weights. Read-only: no delete/pull support
-yet.
+compression *methods*, not model weights.
 
 ```ts
 const local = await vq.models.local();
@@ -212,6 +211,39 @@ Backed by `huggingface_hub`'s own cache scanner (`scan_cache_dir()`), which
 already resolves `HF_HOME`/`HF_HUB_CACHE` and correctly deduplicates the
 content-addressed blob layout — not a hand-rolled `du` over the cache
 directory.
+
+`vq.models.pull()` and `vq.models.delete()` manage the cache directly —
+downloading or evicting a model's weights without starting a
+`veloxquant serve` process:
+
+```ts
+const pulled = await vq.models.pull("mlx-community/Qwen3-4B-4bit");
+// { id: "mlx-community/Qwen3-4B-4bit", sizeBytes: 2278969756 }
+
+const deleted = await vq.models.delete("mlx-community/Qwen3-4B-4bit");
+// { id: "mlx-community/Qwen3-4B-4bit", freedBytes: 2278969756 }
+```
+
+Both are built on the same `huggingface_hub` APIs the cache scanner above
+already relies on: `pull()` calls `snapshot_download()`, and `delete()` uses
+`scan_cache_dir()` → `delete_revisions()` → `execute()` rather than an
+`rm -rf` on a resolved path — the cache's blob layout is content-addressed
+and shared across revisions/repos via symlinks, so a naive recursive delete
+risks corrupting a *different* cached model.
+
+`vq.models.pull()` does **not** default to `VeloxQuantOptions.timeoutMs`'s
+usual 30s CLI timeout — model downloads can take many minutes, so pass
+`{ timeoutMs }` explicitly if you want a bound; by default the call waits as
+long as it takes. There's no progress callback in this version:
+`snapshot_download()`'s tqdm-based progress doesn't cross the subprocess
+boundary cleanly, so a `pull()` call is silent until it resolves or throws.
+
+Both are exposed on the CLI too:
+
+```bash
+npx veloxquant models pull mlx-community/Qwen3-4B-4bit
+npx veloxquant models delete mlx-community/Qwen3-4B-4bit
+```
 
 ## Hardware-aware memory optimization
 

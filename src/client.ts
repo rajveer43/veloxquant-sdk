@@ -2,7 +2,7 @@ import { getSystemInfo } from './system.js';
 import { autoConfig, estimateMemory } from './memory.js';
 import { recommend } from './recommend.js';
 import { listMethods } from './methods.js';
-import { listLocalModels } from './localModels.js';
+import { deleteLocalModel, listLocalModels, pullLocalModel } from './localModels.js';
 import { optimize } from './optimize.js';
 import { startServer } from './serve.js';
 import { chatCompletion, chatStream } from './chat.js';
@@ -11,6 +11,7 @@ import { Conversation, type ConversationOptions } from './conversation.js';
 import type {
   ChatInput,
   ChatResponse,
+  DeleteModelResult,
   LoadOptions,
   LocalModel,
   MemoryEstimate,
@@ -18,6 +19,7 @@ import type {
   MethodsResult,
   OptimizeInput,
   OptimizeResult,
+  PullModelResult,
   RecommendInput,
   RecommendResult,
   ServeHandle,
@@ -97,8 +99,18 @@ export class VeloxQuant {
   readonly models = {
     list: (filter: { servableOnly?: boolean; family?: string } = {}): Promise<MethodsResult> =>
       listMethods(filter, this.options),
-    /** Lists model weights already downloaded to the local Hugging Face cache (read-only). */
+    /** Lists model weights already downloaded to the local Hugging Face cache. */
     local: (): Promise<LocalModel[]> => listLocalModels(this.options),
+    /**
+     * Downloads a model's weights into the local Hugging Face cache without
+     * loading it into MLX. No `timeoutMs` default is inherited from
+     * `VeloxQuantOptions` here — downloads can take many minutes, so pass
+     * `timeoutMs` explicitly if you want a bound.
+     */
+    pull: (modelId: string, opts: { timeoutMs?: number } = {}): Promise<PullModelResult> =>
+      pullLocalModel(modelId, { ...this.options, ...opts }),
+    /** Deletes a model's weights from the local Hugging Face cache. */
+    delete: (modelId: string): Promise<DeleteModelResult> => deleteLocalModel(modelId, this.options),
   };
 
   async recommendModel(input: RecommendInput): Promise<RecommendResult> {

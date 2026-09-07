@@ -124,6 +124,16 @@ export interface LocalModel {
   lastUsedAt: Date | null;
 }
 
+export interface PullModelResult {
+  id: string;
+  sizeBytes: number;
+}
+
+export interface DeleteModelResult {
+  id: string;
+  freedBytes: number;
+}
+
 export type OptimizeProfile = 'speed' | 'balanced' | 'memory' | 'maximum-context';
 
 export interface OptimizeInput {
