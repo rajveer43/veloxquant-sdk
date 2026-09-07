@@ -456,12 +456,27 @@ an already-running `VeloxQuantModel`, not a bare model name, since loading is
 async and this SDK has no disposal hook to call `model.stop()` on your
 behalf — that stays the caller's responsibility.
 
-**Streaming is not implemented in this adapter.** `invoke()` and LCEL chains
-work; `.stream()` falls back to buffering the full `invoke()` result rather
-than truly streaming tokens, since `_streamResponseChunks()` isn't
-overridden. This is a known, intentional gap — not a partially-working
-implementation — and a natural follow-up if streaming through LangChain
-becomes a real need.
+**Streaming works.** `.stream()` and LCEL chains stream real token deltas
+via `_streamResponseChunks()`, backed by the same SSE stream
+`VeloxQuantModel.stream()` uses:
+
+```ts
+const stream = await chatModel.stream("Explain quantum computing simply.");
+for await (const chunk of stream) {
+  process.stdout.write(chunk.content as string);
+}
+```
+
+Tool-call deltas stream too — verified against `mlx_lm`'s server, each
+streamed tool call arrives as one complete `{ id, name, arguments }` object
+per SSE event rather than an incrementally-assembled fragment, so
+`tool_call_chunks` on each `AIMessageChunk` are always immediately valid on
+their own, not partial JSON needing further concatenation.
+
+**One asymmetry vs. `invoke()`:** `mlx_lm`'s server does not send a `usage`
+object on any streamed SSE event (only on the non-streaming response), so
+token-usage metadata is unavailable when streaming — `llmOutput` carries no
+`tokenUsage` on the streaming path, unlike `_generate()`.
 
 `@langchain/core` is an optional peer dependency — install it yourself to use
 this subpath. A full runnable version (direct `invoke()` and an LCEL chain,

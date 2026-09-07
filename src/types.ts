@@ -207,6 +207,16 @@ export interface ChatResponse {
 export interface StreamChunk {
   text: string;
   done: boolean;
+  /**
+   * Present when this SSE event carried one or more complete tool calls.
+   * Verified against mlx_lm's server.py: each streamed tool-call delta is a
+   * fully-formed { id, name, argumentsJson } object (arguments are already
+   * JSON.stringify()'d server-side before being put on the wire) — not an
+   * incremental fragment of a single call's arguments the way OpenAI's own
+   * streaming tool-call deltas work. So callers can treat each entry here
+   * as complete and parseable immediately, no accumulation required.
+   */
+  toolCalls?: ToolCall[];
 }
 
 export interface ServeHandle {

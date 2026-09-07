@@ -121,7 +121,10 @@ export async function chatCompletion(handle: ServeHandle, input: ChatInput): Pro
 }
 
 interface OpenAIStreamChunkPayload {
-  choices: Array<{ delta?: { content?: string }; finish_reason: string | null }>;
+  choices: Array<{
+    delta?: { content?: string; tool_calls?: OpenAIToolCallPayload[] };
+    finish_reason: string | null;
+  }>;
 }
 
 /** Streams a chat completion token-by-token via SSE from a running serve() handle. */
@@ -135,6 +138,7 @@ export async function* chatStream(handle: ServeHandle, input: ChatInput): AsyncG
       max_tokens: input.maxTokens,
       temperature: input.temperature,
       top_p: input.topP,
+      tools: input.tools,
       stream: true,
     }),
   });
@@ -166,8 +170,11 @@ export async function* chatStream(handle: ServeHandle, input: ChatInput): AsyncG
         }
         const parsed = JSON.parse(data) as OpenAIStreamChunkPayload;
         const delta = parsed.choices[0]?.delta?.content ?? '';
+        const toolCalls = toToolCalls(parsed.choices[0]?.delta?.tool_calls);
         const finished = parsed.choices[0]?.finish_reason !== null && parsed.choices[0]?.finish_reason !== undefined;
-        if (delta) yield { text: delta, done: false };
+        if (delta || toolCalls) {
+          yield { text: delta, done: false, ...(toolCalls ? { toolCalls } : {}) };
+        }
         if (finished) {
           yield { text: '', done: true };
           return;
