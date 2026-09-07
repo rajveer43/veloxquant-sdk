@@ -1,8 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { Agent } from '../../src/agent.js';
 import type { ChatInput, ChatResponse } from '../../src/types.js';
 import type { VeloxQuantModel } from '../../src/client.js';
+
+interface FakeToolDef {
+  name: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
+}
+
+function fakeMcpClient(opts: {
+  tools: FakeToolDef[];
+  callToolResult?: (name: string, args: unknown) => unknown;
+  onClose?: () => void;
+}): Client {
+  return {
+    listTools: async () => ({ tools: opts.tools }),
+    callTool: async ({ name, arguments: args }: { name: string; arguments: unknown }) =>
+      opts.callToolResult?.(name, args) ?? { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] },
+    close: async () => {
+      opts.onClose?.();
+    },
+  } as unknown as Client;
+}
 
 function fakeModel(responses: ChatResponse[]): VeloxQuantModel & { calls: ChatInput[] } {
   const calls: ChatInput[] = [];
@@ -150,4 +172,80 @@ test('Agent.stop(): delegates to the underlying model.stop()', async () => {
   const agent = new Agent(model);
   await agent.stop();
   assert.equal(stopped, true);
+});
+
+test('Agent.useMcpServer(): registers MCP tools alongside manually-registered ones and dispatches to them', async () => {
+  const model = fakeModel([
+    toolCallResponse('get_weather', '{"location":"Tokyo"}'),
+    textResponse('It is sunny in Tokyo.'),
+  ]);
+  const agent = new Agent(model);
+
+  let executedWith: unknown = null;
+  const client = fakeMcpClient({
+    tools: [{ name: 'get_weather', description: 'Get weather', inputSchema: { type: 'object' } }],
+    callToolResult: (_name, args) => {
+      executedWith = args;
+      return { content: [{ type: 'text', text: JSON.stringify({ condition: 'sunny' }) }] };
+    },
+  });
+
+  await agent.useMcpServer({ name: 'weather-server', client });
+
+  const result = await agent.run('weather in Tokyo?');
+  assert.equal(result.text, 'It is sunny in Tokyo.');
+  assert.deepEqual(executedWith, { location: 'Tokyo' });
+  assert.deepEqual(result.steps[0].result, { condition: 'sunny' });
+
+  // Confirm the MCP tool was actually advertised to the model as a tool
+  // definition, not just dispatched to after the fact.
+  const firstCall = model.calls[0];
+  assert.deepEqual(
+    firstCall.tools?.map((t) => t.function.name),
+    ['get_weather'],
+  );
+});
+
+test('Agent.useMcpServer(): a tool name colliding with an already-registered manual tool throws', async () => {
+  const model = fakeModel([]);
+  const agent = new Agent(model);
+  agent.tool({ name: 'get_weather', parameters: {}, execute: async () => ({}) });
+
+  const client = fakeMcpClient({ tools: [{ name: 'get_weather', inputSchema: {} }] });
+
+  await assert.rejects(
+    () => agent.useMcpServer({ name: 'weather-server', client }),
+    /A tool named "get_weather" is already registered/,
+  );
+});
+
+test('Agent.useMcpServer(): a tool name colliding with another MCP server also throws', async () => {
+  const model = fakeModel([]);
+  const agent = new Agent(model);
+
+  await agent.useMcpServer({
+    name: 'server-a',
+    client: fakeMcpClient({ tools: [{ name: 'shared_tool', inputSchema: {} }] }),
+  });
+
+  await assert.rejects(
+    () =>
+      agent.useMcpServer({
+        name: 'server-b',
+        client: fakeMcpClient({ tools: [{ name: 'shared_tool', inputSchema: {} }] }),
+      }),
+    /A tool named "shared_tool" is already registered/,
+  );
+});
+
+test('Agent.stop(): does not close an MCP server built from a caller-supplied client (caller owns that lifecycle)', async () => {
+  const model = fakeModel([]);
+  const agent = new Agent(model);
+
+  let closed = false;
+  const client = fakeMcpClient({ tools: [], onClose: () => (closed = true) });
+  await agent.useMcpServer({ name: 'caller-owned', client });
+
+  await agent.stop();
+  assert.equal(closed, false);
 });

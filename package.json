@@ -23,6 +23,11 @@
       "types": "./dist/langchain.d.ts",
       "import": "./dist/langchain.js",
       "require": "./dist/langchain.cjs"
+    },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js",
+      "require": "./dist/mcp.cjs"
     }
   },
   "bin": {
@@ -75,6 +80,7 @@
   "peerDependencies": {
     "@ai-sdk/openai-compatible": "^3.0.0",
     "@langchain/core": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "ai": "^7.0.0"
   },
   "peerDependenciesMeta": {
@@ -82,6 +88,9 @@
       "optional": true
     },
     "@langchain/core": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
       "optional": true
     },
     "ai": {
@@ -92,6 +101,7 @@
     "@ai-sdk/openai-compatible": "^3.0.43",
     "@ai-sdk/provider": "^4.0.10",
     "@langchain/core": "^1.2.9",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",

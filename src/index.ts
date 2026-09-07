@@ -22,6 +22,21 @@ export {
 export type { AutopilotInput } from './autopilot.js';
 export type { BenchmarkInput, BenchmarkResult } from './benchmark.js';
 export type { ToolSpec, AgentRunOptions, AgentStep, AgentRunResult } from './agent.js';
+/**
+ * McpServerConfig/McpStdioConfig/McpHttpConfig/McpToolSource and the
+ * connectMcpServer/unwrapMcpToolResult functions are intentionally NOT
+ * re-exported from this entrypoint: mcp.ts imports the optional peer
+ * dependency @modelcontextprotocol/sdk, and a static re-export here would
+ * force that import to be bundled/evaluated eagerly whenever anyone
+ * imports @veloxquant/sdk at all — breaking the base package for callers
+ * who never touch MCP and don't have the MCP SDK installed (verified: a
+ * static `export ... from './mcp.js'` here pulled @modelcontextprotocol/sdk
+ * into dist/index.js's own eager import graph, even though agent.ts's own
+ * usage is a dynamic `await import('./mcp.js')` and builds into its own
+ * lazy chunk on its own). `Agent.useMcpServer(config)` is the intended
+ * public surface for MCP support and lazy-loads mcp.ts itself — for the
+ * lower-level types/helpers, import from '@veloxquant/sdk/mcp' instead.
+ */
 export type { ConversationOptions, ConversationSendOptions } from './conversation.js';
 
 export type {

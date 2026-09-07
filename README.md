@@ -39,6 +39,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [Vercel AI SDK](#vercel-ai-sdk)
 - [LangChain.js](#langchainjs)
 - [Tool-calling agent](#tool-calling-agent)
+  - [MCP tool sources](#mcp-tool-sources)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
 - [Persistent model sessions](#persistent-model-sessions)
 - [Multi-turn conversations](#multi-turn-conversations)
@@ -559,10 +560,50 @@ expected, that's the first thing to check.
 
 **Scope**: single-turn tool calling only (call tools → feed results back →
 repeat until the model stops calling tools or `maxSteps`, default 8, is
-reached). No MCP support and no multi-step planning beyond that loop — both
-are natural follow-ups but a separate, larger scope.
+reached). No multi-step planning beyond that loop — a natural follow-up but a
+separate, larger scope.
 
 A full runnable version is at [`examples/agent.ts`](examples/agent.ts).
+
+### MCP tool sources
+
+`agent.useMcpServer()` connects to an [MCP](https://modelcontextprotocol.io)
+server and registers its tools alongside anything registered with
+`agent.tool()` — both share one dispatch loop in `run()`:
+
+```ts
+const agent = await vq.agent({ model: "mlx-community/Qwen3-4B-4bit", optimize: "auto" });
+
+await agent.useMcpServer({
+  name: "filesystem",
+  transport: "stdio",
+  command: "npx",
+  args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"],
+});
+
+const result = await agent.run("List the files in the allowed directory.");
+console.log(result.text);
+
+await agent.stop(); // also closes any MCP servers useMcpServer() connected itself
+```
+
+Or hand it an already-connected `Client` from `@modelcontextprotocol/sdk`
+directly (`{ name, client }`) — in that case the connection's lifecycle stays
+with whoever created it, and `agent.stop()` will not close it.
+
+Can be called more than once, including after the agent has started
+running, so a long-lived agent can pick up more tools mid-session.
+Registering a tool whose name collides with an already-registered one
+(manual or from another MCP server) throws — same behavior as calling
+`agent.tool()` twice with the same name.
+
+`@modelcontextprotocol/sdk` is an optional peer dependency, loaded lazily
+only when `useMcpServer()` is actually called — the rest of this SDK works
+without it installed. **Scope**: MCP *tools* only, no resources or prompts
+primitives. A tool result with unsupported content (image/audio/resource)
+throws a clear error rather than silently dropping it, since surfacing
+non-text content to a text-only chat model needs a deliberate design
+decision this SDK hasn't made yet.
 
 ## CLI
 
