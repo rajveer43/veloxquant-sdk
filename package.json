@@ -28,6 +28,11 @@
       "types": "./dist/mcp.d.ts",
       "import": "./dist/mcp.js",
       "require": "./dist/mcp.cjs"
+    },
+    "./llamaindex": {
+      "types": "./dist/llamaindex.d.ts",
+      "import": "./dist/llamaindex.js",
+      "require": "./dist/llamaindex.cjs"
     }
   },
   "bin": {
@@ -81,7 +86,8 @@
     "@ai-sdk/openai-compatible": "^3.0.0",
     "@langchain/core": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "ai": "^7.0.0"
+    "ai": "^7.0.0",
+    "llamaindex": "^0.12.0"
   },
   "peerDependenciesMeta": {
     "@ai-sdk/openai-compatible": {
@@ -95,6 +101,9 @@
     },
     "ai": {
       "optional": true
+    },
+    "llamaindex": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -107,6 +116,7 @@
     "@typescript-eslint/parser": "^7.0.0",
     "ai": "^7.0.91",
     "eslint": "^8.56.0",
+    "llamaindex": "^0.12.1",
     "openai": "^7.9.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",

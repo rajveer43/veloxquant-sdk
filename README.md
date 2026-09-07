@@ -38,6 +38,7 @@ responsibility of the underlying `veloxquant-mlx` engine.
 - [OpenAI compatibility](#openai-compatibility)
 - [Vercel AI SDK](#vercel-ai-sdk)
 - [LangChain.js](#langchainjs)
+- [LlamaIndex.TS](#llamaindexts)
 - [Tool-calling agent](#tool-calling-agent)
   - [MCP tool sources](#mcp-tool-sources)
 - [Hardware-aware memory optimization](#hardware-aware-memory-optimization)
@@ -515,6 +516,66 @@ token-usage metadata is unavailable when streaming — `llmOutput` carries no
 this subpath. A full runnable version (direct `invoke()` and an LCEL chain,
 verified against a real running server) is at
 [`examples/langchain.ts`](examples/langchain.ts).
+
+## LlamaIndex.TS
+
+`@veloxquant/sdk/llamaindex` wraps an already-loaded model as a
+[LlamaIndex.TS](https://ts.llamaindex.ai) `LLM`, usable anywhere LlamaIndex
+expects one — query engines, agents, `Settings.llm`:
+
+```ts
+import { VeloxQuant } from "@veloxquant/sdk";
+import { VeloxQuantLLM } from "@veloxquant/sdk/llamaindex";
+
+const vq = new VeloxQuant();
+const model = await vq.load({ model: "mlx-community/Qwen3-4B-4bit", optimize: "auto" });
+const llm = new VeloxQuantLLM(model);
+
+const response = await llm.chat({ messages: [{ role: "user", content: "Hello!" }] });
+console.log(response.message.content);
+
+await model.stop();
+```
+
+Streaming works from day one in this adapter (unlike the LangChain.js
+adapter's original gap):
+
+```ts
+const stream = await llm.chat({ messages: [{ role: "user", content: "Hi" }], stream: true });
+for await (const chunk of stream) process.stdout.write(chunk.delta);
+```
+
+`complete()` (LlamaIndex's plain-prompt API) works too, built on the same
+`chat()` under the hood via LlamaIndex's own `BaseLLM`:
+
+```ts
+const completion = await llm.complete({ prompt: "The capital of France is" });
+console.log(completion.text);
+```
+
+Same lifecycle rule as the other two adapters: `VeloxQuantLLM` takes an
+already-running `VeloxQuantModel`, not a bare model name — loading is async
+and this SDK has no disposal hook to call `model.stop()` on your behalf.
+
+**`contextWindow` cannot be verified against the served model** —
+`veloxquant-mlx` has no LLM catalog (see [Overview](#overview)), so there's
+no source of truth for a model's actual context length here. It defaults to
+LlamaIndex's own `DEFAULT_CONTEXT_WINDOW` (3900) unless you pass
+`{ contextWindow }` to the constructor — override it if the served model's
+real window matters to your use case (e.g. LlamaIndex sizing its own
+chunking/retrieval logic off this value).
+
+**Text-only, no tool-calling in this adapter.** LlamaIndex's tool metadata
+schema doesn't line up with the OpenAI `tools` shape this SDK's `Agent` and
+wire format use elsewhere, and reconciling the two needs a deliberate design
+pass — out of scope for this version. A multimodal message's non-text
+content parts (image/audio) are dropped rather than thrown on, so a mixed
+text+image message doesn't crash a text-only request outright — but no
+non-text content is ever sent to the model.
+
+`llamaindex` is an optional peer dependency — install it yourself to use
+this subpath. A full runnable version (chat, streaming chat, and complete)
+is at [`examples/llamaindex.ts`](examples/llamaindex.ts).
 
 ## Tool-calling agent
 

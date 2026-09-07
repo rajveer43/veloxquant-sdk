@@ -1,10 +1,7 @@
 /**
  * LangChain.js adapter. Wraps an already-vq.load()ed VeloxQuantModel as a
- * LangChain.js BaseChatModel, usable with invoke() and LCEL chains.
- *
- * Streaming (`_streamResponseChunks`) is not implemented in this adapter —
- * invoke() and LCEL chains work, but `.stream()` buffers the full result
- * rather than truly streaming tokens.
+ * LangChain.js BaseChatModel, usable with invoke(), .stream(), and LCEL
+ * chains — .stream() yields real token deltas via _streamResponseChunks().
  *
  * Usage:
  *   npx tsx examples/langchain.ts
