@@ -24,6 +24,9 @@ jobs:
       - name: Update npm (Trusted Publishing needs npm 11.5.1+)
         run: npm install -g npm@11
 
+      - name: Install huggingface_hub
+        run: pip3 install --user --break-system-packages huggingface_hub || pip3 install --user huggingface_hub
+
       - run: npm ci
 
       - name: Lint

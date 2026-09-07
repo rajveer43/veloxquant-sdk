@@ -17,6 +17,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install huggingface_hub
+        run: pip3 install --user --break-system-packages huggingface_hub || pip3 install --user huggingface_hub
+
       - run: npm ci
 
       - name: Lint
