@@ -1,31 +1,47 @@
-name: Publish (manual fallback)
+name: Publish
 
-# Superseded by .github/workflows/release.yml, which publishes automatically
-# via Changesets when the "Version Packages" PR is merged. This workflow is
-# kept as a manual escape hatch (e.g. to republish a tag if the automated
-# release run fails) and no longer runs on tag push to avoid double-publishing.
+# Two ways in:
+# 1. workflow_call from release.yml, right after the "Version Packages" PR is
+#    merged to master (the normal automated path).
+# 2. workflow_dispatch, as a manual fallback to republish a specific tag if
+#    the automated path ever fails.
+#
+# This stays a workflow named "publish.yml" because npm's OIDC Trusted
+# Publisher config for @veloxquant/sdk is registered against this exact
+# workflow filename — renaming or moving the npm publish step to a
+# differently-named workflow (e.g. release.yml) makes npm reject the OIDC
+# token with a 404, since it won't recognize the run as coming from a
+# trusted workflow.
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Git tag to publish (e.g. v0.7.0). Leave empty to publish from the calling ref via Changesets.'
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to publish (e.g. v0.7.0)'
-        required: true
+        description: 'Git tag to publish (e.g. v0.7.0). Leave empty to publish from master via Changesets.'
+        required: false
+        type: string
 
 jobs:
   publish:
     runs-on: macos-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
+          node-version: '22'
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -50,6 +66,7 @@ jobs:
         run: npm run build
 
       - name: Verify tag matches package.json version
+        if: inputs.tag != ''
         run: |
           PKG_VERSION="v$(node -p "require('./package.json').version")"
           if [ "$PKG_VERSION" != "${{ inputs.tag }}" ]; then
@@ -57,5 +74,7 @@ jobs:
             exit 1
           fi
 
-      - name: Publish to npm
-        run: npm publish --access public --provenance
+      - name: Publish to npm and create GitHub Release
+        run: npx changeset publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
