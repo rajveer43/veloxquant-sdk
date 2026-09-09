@@ -25,6 +25,17 @@ name: Release
 # env var anything else (e.g. NODE_AUTH_TOKEN) makes the action silently
 # fall back to OIDC trusted publishing and fail (EOTP/E404), even though
 # a perfectly valid token is sitting in the NPM_TOKEN secret.
+#
+# This job also deliberately omits `id-token: write`. .npmrc sets
+# provenance=true (for publish.yml's OIDC/Trusted Publishing path), and
+# npm publish honors that flag here too if OIDC credentials are available
+# from the job. With id-token: write present, npm attempted to attach
+# provenance/OIDC attestation on top of the NPM_TOKEN auth, which failed
+# the same Trusted Publisher identity check as the original OIDC attempts
+# (registered for publish.yml, not release.yml) and surfaced as the same
+# E404 even with a valid, correctly-wired token. Without id-token: write,
+# no OIDC token is available to this job, so npm falls back to plain
+# token auth as intended.
 on:
   push:
     branches: [master]
@@ -37,7 +48,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
