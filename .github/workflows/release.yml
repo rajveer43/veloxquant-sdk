@@ -26,16 +26,18 @@ name: Release
 # fall back to OIDC trusted publishing and fail (EOTP/E404), even though
 # a perfectly valid token is sitting in the NPM_TOKEN secret.
 #
-# This job also deliberately omits `id-token: write`. .npmrc sets
-# provenance=true (for publish.yml's OIDC/Trusted Publishing path), and
-# npm publish honors that flag here too if OIDC credentials are available
-# from the job. With id-token: write present, npm attempted to attach
-# provenance/OIDC attestation on top of the NPM_TOKEN auth, which failed
-# the same Trusted Publisher identity check as the original OIDC attempts
-# (registered for publish.yml, not release.yml) and surfaced as the same
-# E404 even with a valid, correctly-wired token. Without id-token: write,
-# no OIDC token is available to this job, so npm falls back to plain
-# token auth as intended.
+# This job also deliberately omits `id-token: write` and sets
+# NPM_CONFIG_PROVENANCE=false. .npmrc sets provenance=true globally (for
+# publish.yml's OIDC/Trusted Publishing path). With id-token: write still
+# present here, npm attempted OIDC-based provenance attestation on top of
+# the NPM_TOKEN auth, which failed the same Trusted Publisher identity
+# check as the original OIDC attempts (registered for publish.yml, not
+# release.yml) and surfaced as the same E404 even with a valid,
+# correctly-wired token. Removing id-token: write alone then surfaced a
+# clearer error: "EUSAGE: Provenance generation in GitHub Actions requires
+# 'write' access to the 'id-token' permission" - .npmrc's provenance=true
+# still applied even without OIDC credentials available. Overriding it off
+# via NPM_CONFIG_PROVENANCE lets plain NPM_TOKEN auth complete.
 on:
   push:
     branches: [master]
@@ -84,3 +86,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # .npmrc sets provenance=true for publish.yml's OIDC path. This
+          # job has no id-token: write (see comment above), so provenance
+          # generation isn't possible here; override it off rather than
+          # have npm publish hard-fail with EUSAGE.
+          NPM_CONFIG_PROVENANCE: 'false'
