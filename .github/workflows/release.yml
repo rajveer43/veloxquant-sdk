@@ -1,9 +1,13 @@
 name: Release
 
 # Handles only the "open/update the Version Packages PR" half of the
-# Changesets flow. The actual `npm publish` runs in publish.yml (invoked
-# below via workflow_call) because npm's OIDC Trusted Publisher config for
-# @veloxquant/sdk is registered against that exact workflow filename.
+# Changesets flow, plus tagging. The actual `npm publish` runs in
+# publish.yml, triggered by the `vX.Y.Z` tag this workflow pushes below —
+# npm's OIDC Trusted Publisher config for @veloxquant/sdk is registered
+# against publish.yml's own tag-push trigger specifically. A workflow_call
+# chain into publish.yml was tried first and failed OIDC validation (E404
+# on publish) even with a matching filename, so tagging-and-letting-the-
+# push-trigger-fire is the reliable path.
 on:
   push:
     branches: [master]
@@ -73,13 +77,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish:
+  tag-release:
     needs: version-or-detect-release
     if: |
       needs.version-or-detect-release.outputs.has-changesets == 'false' &&
       needs.version-or-detect-release.outputs.unpublished-version == 'true'
-    uses: ./.github/workflows/publish.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag the release
+        run: |
+          VERSION="v$(node -p "require('./package.json').version")"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"

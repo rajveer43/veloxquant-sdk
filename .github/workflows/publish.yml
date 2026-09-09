@@ -1,29 +1,24 @@
 name: Publish
 
-# Two ways in:
-# 1. workflow_call from release.yml, right after the "Version Packages" PR is
-#    merged to master (the normal automated path).
-# 2. workflow_dispatch, as a manual fallback to republish a specific tag if
-#    the automated path ever fails.
+# Triggered by a `vX.Y.Z` tag push, which release.yml creates and pushes
+# once the "Version Packages" PR is merged (see release.yml).
 #
-# This stays a workflow named "publish.yml" because npm's OIDC Trusted
-# Publisher config for @veloxquant/sdk is registered against this exact
-# workflow filename — renaming or moving the npm publish step to a
-# differently-named workflow (e.g. release.yml) makes npm reject the OIDC
-# token with a 404, since it won't recognize the run as coming from a
-# trusted workflow.
+# This stays a direct tag-push trigger, and keeps the filename publish.yml,
+# because npm's OIDC Trusted Publisher config for @veloxquant/sdk is
+# registered against this workflow. A `workflow_call` invocation from
+# another workflow was tried and failed OIDC validation (E404 on publish)
+# even though the filename matched — npm's trusted-publisher check appears
+# to require the run to originate directly from this workflow's own
+# trigger, not a reusable-workflow call chain.
 on:
-  workflow_call:
-    inputs:
-      tag:
-        description: 'Git tag to publish (e.g. v0.7.0). Leave empty to publish from the calling ref via Changesets.'
-        required: false
-        type: string
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to publish (e.g. v0.7.0). Leave empty to publish from master via Changesets.'
-        required: false
+        description: 'Git tag to publish (e.g. v0.7.0). Only needed to re-run a manual/failed release.'
+        required: true
         type: string
 
 jobs:
@@ -66,11 +61,11 @@ jobs:
         run: npm run build
 
       - name: Verify tag matches package.json version
-        if: inputs.tag != ''
         run: |
+          TAG_NAME="${{ inputs.tag || github.ref_name }}"
           PKG_VERSION="v$(node -p "require('./package.json').version")"
-          if [ "$PKG_VERSION" != "${{ inputs.tag }}" ]; then
-            echo "Tag ${{ inputs.tag }} does not match package.json version ${PKG_VERSION}"
+          if [ "$PKG_VERSION" != "$TAG_NAME" ]; then
+            echo "Tag $TAG_NAME does not match package.json version $PKG_VERSION"
             exit 1
           fi
 
