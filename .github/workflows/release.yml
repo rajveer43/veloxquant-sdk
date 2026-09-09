@@ -6,8 +6,8 @@ name: Release
 #   and creates a GitHub Release (once that PR has been merged and
 #   package.json's version isn't on npm yet).
 #
-# Publishing uses NPM_TOKEN (classic auth) rather than OIDC Trusted
-# Publishing. Two OIDC-based designs were tried and both failed:
+# Publishing uses NPM_TOKEN (classic/automation auth) rather than OIDC
+# Trusted Publishing. Two OIDC-based designs were tried and both failed:
 #   1. changesets/action running npm publish directly from this workflow
 #      404'd, because npm's Trusted Publisher config for @veloxquant/sdk is
 #      registered against publish.yml specifically, not release.yml.
@@ -17,8 +17,14 @@ name: Release
 #      an identical filename, and a tag pushed using the default
 #      GITHUB_TOKEN doesn't trigger other workflows at all (GitHub's
 #      anti-recursion protection on Actions-authored pushes).
-# NPM_TOKEN sidesteps all of that: it's checked directly against the
-# npm registry regardless of which workflow or trigger performs the push.
+#
+# IMPORTANT: changesets/action's publish step reads the token from an env
+# var literally named NPM_TOKEN (see changesets/action's src/index.ts,
+# `if (process.env.NPM_TOKEN)`) to decide whether to write an npm
+# _authToken and skip OIDC. It does NOT read NODE_AUTH_TOKEN. Naming this
+# env var anything else (e.g. NODE_AUTH_TOKEN) makes the action silently
+# fall back to OIDC trusted publishing and fail (EOTP/E404), even though
+# a perfectly valid token is sitting in the NPM_TOKEN secret.
 on:
   push:
     branches: [master]
@@ -67,4 +73,4 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
