@@ -80,7 +80,10 @@
     "lint": "eslint src --ext ts",
     "test": "node --import tsx --test test/unit/*.test.ts",
     "test:watch": "node --import tsx --test --watch test/unit/*.test.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "npm run build && changeset publish"
   },
   "peerDependencies": {
     "@ai-sdk/openai-compatible": "^3.0.0",
@@ -109,6 +112,8 @@
   "devDependencies": {
     "@ai-sdk/openai-compatible": "^3.0.43",
     "@ai-sdk/provider": "^4.0.10",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.2",
     "@langchain/core": "^1.2.9",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^20.11.0",

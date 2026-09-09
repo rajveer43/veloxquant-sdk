@@ -7,6 +7,32 @@ on:
     branches: [master]
 
 jobs:
+  changeset-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Require a changeset for src/ changes
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -q '^src/'; then
+            if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -q '^\.changeset/.*\.md$'; then
+              echo "This PR changes src/ but adds no .changeset/*.md entry."
+              echo "Run 'npx changeset' to add one (or 'npx changeset add --empty' if this change needs no release notes)."
+              exit 1
+            fi
+          fi
+
   build-and-test:
     runs-on: macos-latest
     steps:
