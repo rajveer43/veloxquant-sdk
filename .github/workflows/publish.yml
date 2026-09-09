@@ -1,23 +1,14 @@
-name: Publish
+name: Publish (manual fallback)
 
-# Triggered by a `vX.Y.Z` tag push, which release.yml creates and pushes
-# once the "Version Packages" PR is merged (see release.yml).
-#
-# This stays a direct tag-push trigger, and keeps the filename publish.yml,
-# because npm's OIDC Trusted Publisher config for @veloxquant/sdk is
-# registered against this workflow. A `workflow_call` invocation from
-# another workflow was tried and failed OIDC validation (E404 on publish)
-# even though the filename matched — npm's trusted-publisher check appears
-# to require the run to originate directly from this workflow's own
-# trigger, not a reusable-workflow call chain.
+# Superseded by .github/workflows/release.yml, which publishes
+# automatically via Changesets (using NPM_TOKEN) once the "Version
+# Packages" PR is merged. This workflow is a manual escape hatch to
+# republish a specific tag if the automated release run ever fails.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to publish (e.g. v0.7.0). Only needed to re-run a manual/failed release.'
+        description: 'Git tag to publish (e.g. v0.7.0)'
         required: true
         type: string
 
@@ -25,23 +16,18 @@ jobs:
   publish:
     runs-on: macos-latest
     permissions:
-      contents: write
-      id-token: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
-          fetch-depth: 0
+          ref: ${{ inputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Update npm (Trusted Publishing needs npm 11.5.1+)
-        run: npm install -g npm@11
 
       - name: Install huggingface_hub
         run: pip3 install --user --break-system-packages huggingface_hub || pip3 install --user huggingface_hub
@@ -62,14 +48,13 @@ jobs:
 
       - name: Verify tag matches package.json version
         run: |
-          TAG_NAME="${{ inputs.tag || github.ref_name }}"
           PKG_VERSION="v$(node -p "require('./package.json').version")"
-          if [ "$PKG_VERSION" != "$TAG_NAME" ]; then
-            echo "Tag $TAG_NAME does not match package.json version $PKG_VERSION"
+          if [ "$PKG_VERSION" != "${{ inputs.tag }}" ]; then
+            echo "Tag ${{ inputs.tag }} does not match package.json version ${PKG_VERSION}"
             exit 1
           fi
 
-      - name: Publish to npm and create GitHub Release
-        run: npx changeset publish
+      - name: Publish to npm
+        run: npm publish --access public
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
