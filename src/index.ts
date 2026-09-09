@@ -1,6 +1,8 @@
 export { VeloxQuant, VeloxQuantModel } from './client.js';
 export { autopilot, AutopilotFitError, AutopilotSession } from './autopilot.js';
 export { getSystemInfo } from './system.js';
+export { VeloxQuantWorker, startWorker, decodeWorkerResponse } from './python/worker.js';
+export type { WorkerOptions, WorkerResponse, MetalProbeResult, WorkerCapabilities, BitPackResult, BitPackFileResult, RopeRecodeFileResult } from './python/worker.js';
 export { autoConfig, estimateMemory } from './memory.js';
 export { recommend, normalizeChip, normalizeRamGb, SUPPORTED_CHIPS, SUPPORTED_RAM_GB } from './recommend.js';
 export { listMethods } from './methods.js';
