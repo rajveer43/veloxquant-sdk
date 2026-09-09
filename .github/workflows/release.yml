@@ -1,5 +1,9 @@
 name: Release
 
+# Handles only the "open/update the Version Packages PR" half of the
+# Changesets flow. The actual `npm publish` runs in publish.yml (invoked
+# below via workflow_call) because npm's OIDC Trusted Publisher config for
+# @veloxquant/sdk is registered against that exact workflow filename.
 on:
   push:
     branches: [master]
@@ -7,12 +11,15 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
+  version-or-detect-release:
     runs-on: macos-latest
     permissions:
       contents: write
       pull-requests: write
-      id-token: write
+
+    outputs:
+      has-changesets: ${{ steps.check.outputs.has-changesets }}
+      unpublished-version: ${{ steps.check.outputs.unpublished-version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -23,10 +30,6 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Update npm (Trusted Publishing needs npm 11.5.1+)
-        run: npm install -g npm@11
 
       - name: Install huggingface_hub
         run: pip3 install --user --break-system-packages huggingface_hub || pip3 install --user huggingface_hub
@@ -42,13 +45,41 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Create Version PR or publish
-        id: changesets
+      - name: Check for pending changesets and unpublished version
+        id: check
+        run: |
+          PENDING="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md')"
+          if [ -n "$PENDING" ]; then
+            echo "has-changesets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-changesets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          LOCAL_VERSION="$(node -p "require('./package.json').version")"
+          PUBLISHED_VERSION="$(npm view @veloxquant/sdk version 2>/dev/null || echo '')"
+          if [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ]; then
+            echo "unpublished-version=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "unpublished-version=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update Version Packages PR
+        if: steps.check.outputs.has-changesets == 'true'
         uses: changesets/action@v1
         with:
           version: npm run changeset:version
-          publish: npm run changeset:publish
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: version-or-detect-release
+    if: |
+      needs.version-or-detect-release.outputs.has-changesets == 'false' &&
+      needs.version-or-detect-release.outputs.unpublished-version == 'true'
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      id-token: write
