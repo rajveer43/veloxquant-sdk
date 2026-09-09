@@ -763,6 +763,23 @@ npm run typecheck
 npm run lint
 ```
 
+### Releasing
+
+Releases and release notes are automated with [Changesets](https://github.com/changesets/changesets). Any PR
+with a user-facing change (new feature, bug fix, breaking change) should include a changeset:
+
+```bash
+npx changeset
+```
+
+This prompts for a bump type (patch/minor/major) and a summary, and writes a `.changeset/*.md` file — commit
+it with your PR. CI fails PRs that touch `src/` without one (use `npx changeset add --empty` if a change
+genuinely needs no release notes).
+
+On merge to `master`, a GitHub Action opens or updates a "Version Packages" PR that bumps `package.json` and
+writes `CHANGELOG.md` from pending changesets. Merging that PR builds, publishes to npm, tags the release, and
+creates a GitHub Release with the generated notes — no manual changelog writing or tagging required.
+
 ## License
 
 MIT
