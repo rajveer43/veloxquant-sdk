@@ -1,5 +1,13 @@
 # @veloxquant/sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- [#36](https://github.com/rajveer43/veloxquant-sdk/pull/36) [`d2b5ff7`](https://github.com/rajveer43/veloxquant-sdk/commit/d2b5ff7eb59fcc669a33752392854462adad94f3) Thanks [@rajveer43](https://github.com/rajveer43)! - Add a persistent MLX/Metal worker bridge (`VeloxQuantWorker`) for Node.js. Exposes `ping()`,
+  `capabilities()`, `metalProbe()`, `bitPack()`, `bitPackFile()`, and `ropeRecodeFile()` over a
+  long-lived JSON-lines subprocess, with `.npy` file-backed tensor transport for large arrays.
+
 ## History (pre-automation)
 
 Versions below were released manually before this repo adopted
