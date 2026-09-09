@@ -1,13 +1,24 @@
 name: Release
 
-# Handles only the "open/update the Version Packages PR" half of the
-# Changesets flow, plus tagging. The actual `npm publish` runs in
-# publish.yml, triggered by the `vX.Y.Z` tag this workflow pushes below —
-# npm's OIDC Trusted Publisher config for @veloxquant/sdk is registered
-# against publish.yml's own tag-push trigger specifically. A workflow_call
-# chain into publish.yml was tried first and failed OIDC validation (E404
-# on publish) even with a matching filename, so tagging-and-letting-the-
-# push-trigger-fire is the reliable path.
+# Standard Changesets flow, all in one workflow:
+# - On every push to master, changesets/action either opens/updates the
+#   "Version Packages" PR (if changesets are pending), or publishes to npm
+#   and creates a GitHub Release (once that PR has been merged and
+#   package.json's version isn't on npm yet).
+#
+# Publishing uses NPM_TOKEN (classic auth) rather than OIDC Trusted
+# Publishing. Two OIDC-based designs were tried and both failed:
+#   1. changesets/action running npm publish directly from this workflow
+#      404'd, because npm's Trusted Publisher config for @veloxquant/sdk is
+#      registered against publish.yml specifically, not release.yml.
+#   2. Delegating the actual publish to publish.yml (first via
+#      workflow_call, then via a tag push from release.yml) still failed:
+#      a workflow_call run doesn't match npm's OIDC claim check even with
+#      an identical filename, and a tag pushed using the default
+#      GITHUB_TOKEN doesn't trigger other workflows at all (GitHub's
+#      anti-recursion protection on Actions-authored pushes).
+# NPM_TOKEN sidesteps all of that: it's checked directly against the
+# npm registry regardless of which workflow or trigger performs the push.
 on:
   push:
     branches: [master]
@@ -15,15 +26,12 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  version-or-detect-release:
+  release:
     runs-on: macos-latest
     permissions:
       contents: write
       pull-requests: write
-
-    outputs:
-      has-changesets: ${{ steps.check.outputs.has-changesets }}
-      unpublished-version: ${{ steps.check.outputs.unpublished-version }}
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +42,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install huggingface_hub
         run: pip3 install --user --break-system-packages huggingface_hub || pip3 install --user huggingface_hub
@@ -49,50 +58,13 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Check for pending changesets and unpublished version
-        id: check
-        run: |
-          PENDING="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md')"
-          if [ -n "$PENDING" ]; then
-            echo "has-changesets=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-changesets=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          LOCAL_VERSION="$(node -p "require('./package.json').version")"
-          PUBLISHED_VERSION="$(npm view @veloxquant/sdk version 2>/dev/null || echo '')"
-          if [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ]; then
-            echo "unpublished-version=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "unpublished-version=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create or update Version Packages PR
-        if: steps.check.outputs.has-changesets == 'true'
+      - name: Create Version PR or publish
         uses: changesets/action@v1
         with:
           version: npm run changeset:version
+          publish: npm run changeset:publish
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  tag-release:
-    needs: version-or-detect-release
-    if: |
-      needs.version-or-detect-release.outputs.has-changesets == 'false' &&
-      needs.version-or-detect-release.outputs.unpublished-version == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Tag the release
-        run: |
-          VERSION="v$(node -p "require('./package.json').version")"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$VERSION"
-          git push origin "$VERSION"
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
