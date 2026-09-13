@@ -202,6 +202,8 @@ export interface ChatInput {
   topP?: number;
   tools?: ToolDefinition[];
   responseFormat?: ResponseFormat;
+  /** Cancels an in-flight HTTP request without stopping the loaded model. */
+  signal?: AbortSignal;
 }
 
 export interface ChatResponse {

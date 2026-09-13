@@ -275,6 +275,22 @@ const r2 = await model.chat({ prompt: "Now summarize that" });
 await model.stop();
 ```
 
+Cancel an in-flight completion or stream without stopping the loaded model by
+passing an `AbortSignal`. The same option is available on `agent.run()`:
+
+```ts
+const controller = new AbortController();
+const stream = model.stream({ prompt: "Write a long story", signal: controller.signal });
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.text);
+  if (shouldStop()) controller.abort();
+}
+
+// The model process is still available for another request.
+await model.stop();
+```
+
 ## Multi-turn conversations
 
 `model.conversation()` bookkeeps chat history automatically so you don't have

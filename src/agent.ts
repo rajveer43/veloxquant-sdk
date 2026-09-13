@@ -15,6 +15,8 @@ export interface AgentRunOptions {
   maxSteps?: number;
   maxTokens?: number;
   temperature?: number;
+  /** Cancels model requests and stops the loop between tool steps. */
+  signal?: AbortSignal;
 }
 
 export interface AgentStep {
@@ -126,11 +128,13 @@ export class Agent {
     const steps: AgentStep[] = [];
 
     for (let step = 0; step < maxSteps; step++) {
+      options.signal?.throwIfAborted();
       const response = await this.model.chat({
         messages,
         tools: tools.length > 0 ? tools : undefined,
         maxTokens: options.maxTokens,
         temperature: options.temperature,
+        signal: options.signal,
       });
 
       if (!response.toolCalls || response.toolCalls.length === 0) {
@@ -140,6 +144,7 @@ export class Agent {
       messages.push({ role: 'assistant', content: response.text, toolCalls: response.toolCalls });
 
       for (const call of response.toolCalls) {
+        options.signal?.throwIfAborted();
         const spec = this.tools.get(call.name);
         if (!spec) {
           messages.push({
@@ -166,8 +171,13 @@ export class Agent {
         try {
           result = await spec.execute(args as never);
         } catch (err) {
+          if (options.signal?.aborted) {
+            options.signal.throwIfAborted();
+          }
           result = { error: (err as Error).message };
         }
+
+        options.signal?.throwIfAborted();
 
         steps.push({ toolName: call.name, args, result });
         messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result) });

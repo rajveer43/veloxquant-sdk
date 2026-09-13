@@ -156,6 +156,39 @@ test('Agent.run(): exceeds maxSteps throws a clear error rather than looping for
   await assert.rejects(() => agent.run('loop forever', { maxSteps: 3 }), /exceeded maxSteps \(3\)/);
 });
 
+test('Agent.run(): a pre-aborted signal prevents the first model request', async () => {
+  const model = fakeModel([textResponse('should not be used')]);
+  const agent = new Agent(model);
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(() => agent.run('stop', { signal: controller.signal }), { name: 'AbortError' });
+  assert.equal(model.calls.length, 0);
+});
+
+test('Agent.run(): forwards the signal to each model request', async () => {
+  const model = fakeModel([textResponse('done')]);
+  const agent = new Agent(model);
+  const controller = new AbortController();
+  await agent.run('continue', { signal: controller.signal });
+  assert.equal(model.calls[0].signal, controller.signal);
+});
+
+test('Agent.run(): cancellation during a tool stops before the next model request', async () => {
+  const model = fakeModel([toolCallResponse('slow_tool', '{}'), textResponse('should not be used')]);
+  const agent = new Agent(model);
+  const controller = new AbortController();
+  agent.tool({
+    name: 'slow_tool',
+    parameters: {},
+    execute: async () => {
+      controller.abort();
+      return { ignored: true };
+    },
+  });
+  await assert.rejects(() => agent.run('stop', { signal: controller.signal }), { name: 'AbortError' });
+  assert.equal(model.calls.length, 1);
+});
+
 test('Agent.tool(): registering a duplicate tool name throws', () => {
   const model = fakeModel([]);
   const agent = new Agent(model);

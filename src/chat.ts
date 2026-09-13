@@ -94,6 +94,7 @@ export async function chatCompletion(handle: ServeHandle, input: ChatInput): Pro
       response_format: input.responseFormat,
       stream: false,
     }),
+    signal: input.signal,
   });
 
   if (!res.ok) {
@@ -141,6 +142,7 @@ export async function* chatStream(handle: ServeHandle, input: ChatInput): AsyncG
       tools: input.tools,
       stream: true,
     }),
+    signal: input.signal,
   });
 
   if (!res.ok || !res.body) {
@@ -150,6 +152,7 @@ export async function* chatStream(handle: ServeHandle, input: ChatInput): AsyncG
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let completed = false;
 
   try {
     while (true) {
@@ -165,6 +168,7 @@ export async function* chatStream(handle: ServeHandle, input: ChatInput): AsyncG
         if (!trimmed.startsWith('data:')) continue;
         const data = trimmed.slice('data:'.length).trim();
         if (data === '[DONE]') {
+          completed = true;
           yield { text: '', done: true };
           return;
         }
@@ -176,12 +180,16 @@ export async function* chatStream(handle: ServeHandle, input: ChatInput): AsyncG
           yield { text: delta, done: false, ...(toolCalls ? { toolCalls } : {}) };
         }
         if (finished) {
+          completed = true;
           yield { text: '', done: true };
           return;
         }
       }
     }
   } finally {
+    if (!completed) {
+      await reader.cancel().catch(() => {});
+    }
     reader.releaseLock();
   }
 }

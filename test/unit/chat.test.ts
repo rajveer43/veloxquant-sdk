@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatInstructions, parseResponseFormat, chatStream } from '../../src/chat.js';
+import { formatInstructions, parseResponseFormat, chatCompletion, chatStream } from '../../src/chat.js';
 import type { ServeHandle, StreamChunk } from '../../src/types.js';
 
 function fakeHandle(): ServeHandle {
@@ -120,4 +120,83 @@ test('chatStream: parses complete tool-call objects out of delta.tool_calls', as
   assert.deepEqual(withToolCalls?.toolCalls, [
     { id: 'call_1', name: 'get_weather', argumentsJson: '{"location":"Tokyo"}' },
   ]);
+});
+
+test('chatStream: forwards a pre-aborted signal to fetch', async (t) => {
+  const controller = new AbortController();
+  controller.abort();
+  let receivedSignal: AbortSignal | null | undefined;
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    receivedSignal = init.signal;
+    throw new DOMException('aborted', 'AbortError');
+  });
+
+  await assert.rejects(
+    collect(chatStream(fakeHandle(), { model: 'fake-model', prompt: 'hi', signal: controller.signal })),
+    (error: unknown) => error instanceof DOMException && error.name === 'AbortError',
+  );
+  assert.equal(receivedSignal, controller.signal);
+});
+
+test('chatCompletion: forwards its AbortSignal to fetch', async (t) => {
+  const controller = new AbortController();
+  let receivedSignal: AbortSignal | null | undefined;
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    receivedSignal = init.signal;
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }], model: 'fake-model' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  });
+  await chatCompletion(fakeHandle(), { model: 'fake-model', prompt: 'hi', signal: controller.signal });
+  assert.equal(receivedSignal, controller.signal);
+});
+
+test('chatStream: aborts a pending read without stopping the model', async (t) => {
+  const controller = new AbortController();
+  let bodyController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const body = new ReadableStream<Uint8Array>({
+    start(streamController) {
+      bodyController = streamController;
+    },
+  });
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    init.signal?.addEventListener('abort', () => {
+      bodyController?.error(new DOMException('aborted', 'AbortError'));
+    });
+    return new Response(body, { status: 200 });
+  });
+
+  const iterator = chatStream(fakeHandle(), { model: 'fake-model', prompt: 'hi', signal: controller.signal });
+  const pending = iterator.next();
+  controller.abort();
+  await assert.rejects(
+    pending,
+    (error: unknown) => error instanceof DOMException && error.name === 'AbortError',
+  );
+});
+
+test('chatStream: returning early cancels the response reader', async (t) => {
+  let cancelled = false;
+  const encoder = new TextEncoder();
+  let emitted = false;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (!emitted) {
+        emitted = true;
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: 'hello' }, finish_reason: null }] })}\n\n`),
+        );
+      }
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  t.mock.method(globalThis, 'fetch', async () => new Response(body, { status: 200 }));
+
+  const iterator = chatStream(fakeHandle(), { model: 'fake-model', prompt: 'hi' });
+  assert.equal((await iterator.next()).value?.text, 'hello');
+  await iterator.return(undefined);
+  assert.equal(cancelled, true);
 });

@@ -1,5 +1,11 @@
 # @veloxquant/sdk
 
+## 0.7.1
+
+### Patch Changes
+
+- Add `AbortSignal` support to chat streams, completions, and agent runs so callers can cancel generation without stopping the loaded model.
+
 ## 0.7.0
 
 ### Minor Changes
